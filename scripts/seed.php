@@ -1,0 +1,36 @@
+<?php
+declare(strict_types=1);
+
+use App\Support\Env;
+use App\Support\Config;
+use App\Support\Database;
+
+require dirname(__DIR__) . '/app/Support/Env.php';
+Env::load(dirname(__DIR__) . '/.env');
+
+require dirname(__DIR__) . '/app/Bootstrap/App.php';
+
+$config = new Config(dirname(__DIR__) . '/app/Config');
+$pdo = Database::pdo($config);
+
+$dir = dirname(__DIR__) . '/database/seeders';
+$files = glob($dir . '/*.php') ?: [];
+sort($files, SORT_STRING);
+
+foreach ($files as $file) {
+    $callable = require $file;
+    if (!is_callable($callable)) {
+        throw new RuntimeException('Seeder must return callable: ' . basename($file));
+    }
+    $pdo->beginTransaction();
+    try {
+        $callable($pdo);
+        $pdo->commit();
+        echo "Seeded: " . basename($file) . "\n";
+    } catch (Throwable $e) {
+        $pdo->rollBack();
+        throw $e;
+    }
+}
+
+echo "Done.\n";

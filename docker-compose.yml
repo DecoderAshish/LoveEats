@@ -1,0 +1,35 @@
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: love_eats
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_ROOT_PASSWORD: ""
+    ports:
+      - "3306:3306"
+    command: ["mysqld","--character-set-server=utf8mb4","--collation-server=utf8mb4_unicode_ci"]
+    volumes:
+      - mysql_data:/var/lib/mysql
+  web:
+    image: php:8.2-cli
+    working_dir: /app
+    volumes:
+      - ./:/app
+    environment:
+      APP_ENV: local
+      APP_BASE_URL: http://localhost:8000
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: love_eats
+      DB_USERNAME: root
+      DB_PASSWORD: ""
+      JWT_SECRET: CHANGE_ME
+      APP_KEY: base64:CHANGE_ME
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mysql
+    command: >
+      sh -lc "php scripts/migrate.php && php scripts/seed.php && php -S 0.0.0.0:8000 -t public"
+volumes:
+  mysql_data:

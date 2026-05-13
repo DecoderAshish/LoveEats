@@ -1,0 +1,41 @@
+<?php
+declare(strict_types=1);
+
+namespace App\Controllers\VendorApi;
+
+use App\Bootstrap\App;
+use App\Http\Request;
+use App\Support\ApiResponse;
+use App\Support\Database;
+use App\Support\Pagination;
+
+final class VendorOrdersController
+{
+    public function list(Request $request, App $app, array $params): \App\Http\Response
+    {
+        $restaurantId = isset($request->query['restaurant_id']) ? (int)$request->query['restaurant_id'] : 0;
+        if ($restaurantId <= 0) {
+            return ApiResponse::error('VALIDATION_ERROR', 'restaurant_id is required', 422);
+        }
+        $p = Pagination::fromQuery($request->query);
+        $pdo = Database::pdo($app->config());
+        $st = $pdo->prepare('SELECT id, order_public_id, status, payment_status, total, created_at FROM orders WHERE restaurant_id = ? ORDER BY id DESC LIMIT ' . (int)$p['limit'] . ' OFFSET ' . (int)$p['offset']);
+        $st->execute([$restaurantId]);
+        $rows = $st->fetchAll();
+        return ApiResponse::ok(['items' => is_array($rows) ? $rows : [], 'pagination' => $p]);
+    }
+
+    public function updateStatus(Request $request, App $app, array $params): \App\Http\Response
+    {
+        $restaurantId = isset($request->body['restaurant_id']) ? (int)$request->body['restaurant_id'] : 0;
+        $status = trim((string)($request->body['status'] ?? ''));
+        $id = isset($params['id']) ? (int)$params['id'] : 0;
+        if ($restaurantId <= 0 || $id <= 0 || $status === '') {
+            return ApiResponse::error('VALIDATION_ERROR', 'restaurant_id, id, status are required', 422);
+        }
+        $pdo = Database::pdo($app->config());
+        $pdo->prepare('UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ? AND restaurant_id = ?')->execute([$status, $id, $restaurantId]);
+        return ApiResponse::ok(['status' => 'ok']);
+    }
+}
+

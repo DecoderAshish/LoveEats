@@ -1,0 +1,47 @@
+<?php
+declare(strict_types=1);
+
+namespace App\Http;
+
+final class Response
+{
+    /** @param array<string, string> $headers */
+    private function __construct(
+        private string $body,
+        private int $status,
+        private array $headers = [],
+    ) {}
+
+    public static function json(array $payload, int $status = 200, array $headers = []): self
+    {
+        $headers = array_merge(['content-type' => 'application/json; charset=utf-8'], $headers);
+        return new self(json_encode($payload, JSON_UNESCAPED_SLASHES), $status, $headers);
+    }
+
+    public static function html(string $html, int $status = 200, array $headers = []): self
+    {
+        $headers = array_merge(['content-type' => 'text/html; charset=utf-8'], $headers);
+        return new self($html, $status, $headers);
+    }
+
+    public static function redirect(string $location, int $status = 302): self
+    {
+        return new self('', $status, ['location' => $location]);
+    }
+
+    public function withHeader(string $name, string $value): self
+    {
+        $clone = clone $this;
+        $clone->headers[strtolower($name)] = $value;
+        return $clone;
+    }
+
+    public function send(): void
+    {
+        http_response_code($this->status);
+        foreach ($this->headers as $name => $value) {
+            header($name . ': ' . $value, true);
+        }
+        echo $this->body;
+    }
+}

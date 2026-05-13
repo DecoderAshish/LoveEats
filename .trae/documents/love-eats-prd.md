@@ -1,0 +1,141 @@
+## 1. Product Overview
+Love Eats is a premium, emotionally warm, mobile-first food delivery customer web app for platform-owned kitchens and partner restaurants.
+It optimizes for speed, conversion, and repeat orders with wallet, referrals, coupons, reels, and AI-assisted discovery.
+
+## 2. Core Features
+
+### 2.1 User Roles
+| Role | Registration Method | Core Permissions |
+|------|---------------------|------------------|
+| Guest | None | Browse, search, add to cart, guest checkout (limited) |
+| Customer | Phone OTP, Email/password | Full ordering, wallet, referrals, favorites, addresses, order tracking |
+| Admin (Backoffice) | Admin invitation | Full management of platform settings, users, restaurants, orders, payouts |
+| Restaurant Staff (Vendor) | Admin/vendor invitation | Menu, inventory, order acceptance/status, offers, analytics (scoped) |
+| Delivery Partner | Phone OTP (partner app/web) | Availability, assigned orders, location updates, earnings |
+
+### 2.2 Feature Modules (Customer Web)
+1. **Landing**: emotionally engaging hero + search + trust sections + content rails (reels, couples, midnight)
+2. **Discovery**: home feed, restaurant listing, category pages, offer pages, trending, couple meals, midnight delivery
+3. **Restaurant**: details, menu categories, filters, reviews, reels integration, recommended/combo meals
+4. **Food Item**: modal with variants/add-ons, nutrition/diet tags, AI suggestions, add-to-cart
+5. **Search**: global search, AI smart search, suggestions, recent searches
+6. **Cart & Checkout**: persistent cart, tips, taxes, dynamic delivery fee, COD/UPI/wallet, coupons, cashback
+7. **Orders**: success, live tracking, order history, reorder, pickup/takeaway flow
+8. **Engagement**: wallet, referrals, coupons, notifications, wishlist/favorites
+9. **Support**: support chat/tickets, contact/about, policies, 404
+
+### 2.3 Page Details (Customer Web)
+| Page Name | Module Name | Feature Description |
+|-----------|-------------|---------------------|
+| Landing Page | Hero | Yellow-gradient hero, primary CTA, “instant cravings” emotional copy, micro-animations |
+| Landing Page | Search Section | Location + food/restaurant search with suggestions and recent items |
+| Landing Page | Trending Restaurants | Horizontal rail, quick view of ETA, rating, offer badges |
+| Landing Page | Popular Dishes | Card grid with add-to-cart quick actions |
+| Landing Page | Food Reels | Autoplay vertical preview strip, like/share, “add from reel” |
+| Landing Page | Couple Meals | Banner tiles + curated combos |
+| Landing Page | Midnight Cravings | Time-based banner + featured dishes |
+| Landing Page | AI Recommendations | Personalized section (fallback to trending) |
+| Landing Page | Download App CTA | Store badges, QR (architecture placeholder) |
+| Landing Page | Testimonials | Social proof carousel |
+| Landing Page | Referral Banner | Invite flow entry + reward highlight |
+| Landing Page | Cashback Section | Wallet benefits summary + how-it-works |
+| Landing Page | Partner CTAs | Delivery partner + restaurant onboarding CTAs |
+| Landing Page | Footer | SEO links, policies, city links, social |
+| Homepage | Personalized Feed | Nearby/trending restaurants, last viewed, reorder, tailored rails |
+| Restaurant Listing | Filters | Veg/non-veg, rating, price, distance, delivery time, offers |
+| Restaurant Details | Menu | Sticky category tabs, search within menu, recommended/combo meals |
+| Food Details Modal | Variants & Add-ons | Quantity, instructions, spice, calories, tags, AI add-on suggestions |
+| Search Results | Unified Results | Restaurants + dishes + reels, pagination and query highlights |
+| AI Smart Search | Smart Suggestions | Diet-preference tags, intent-based suggestions, typo tolerance architecture |
+| Category Pages | Curated Category | SEO-friendly category pages with banners and sorting |
+| Offer Pages | Coupon/Offer Landing | Offer details, eligible restaurants/items, one-tap apply |
+| Trending Foods | “Hot Now” | Time-windowed trending items + reel highlights |
+| Couple Meals | Curations | Combos, bundles, “for two” offers |
+| Midnight Delivery | Time-based | Midnight availability filters + limited-time promos |
+| Reels/Video Feed | Vertical Feed | Autoplay, mute/unmute, like/share, add-to-cart, restaurant redirect |
+| Cart Page | Persistent Cart | Combos/add-ons, instructions, tips, taxes, delivery fee, upsell cards |
+| Checkout | Payment & Address | Address select, pickup toggle, coupon apply, wallet partial pay |
+| Order Success | Summary | Timeline preview, reorder CTA, share/referral CTA |
+| Live Tracking | Timeline + Map Ready | Status timeline, ETA, driver card, polling/websocket-ready structure |
+| Wallet | Ledger | Cashback/referrals/refunds, add money architecture, usage rules |
+| Referral Dashboard | Invite & Analytics | Referral code, share links, rewards, status tracking |
+| Coupons | Wallet-like list | Available/locked/expired coupons, validation hints |
+| User Profile | Account | Profile image, preferences, devices/sessions architecture |
+| Address Management | Address Book | Multiple addresses, tags, default, instructions, GPS-ready |
+| Notifications | Inbox | Order + promo notifications, read/unread |
+| Order History | List | Past orders with filters, invoice link architecture |
+| Reorder Page | One-click | Pre-filled cart with availability checks and substitutions architecture |
+| Wishlist/Favorites | Saved Items | Favorite restaurants/items, quick add-to-cart |
+| Support Chat | Tickets | Ticket creation, status, attachments architecture, FAQ links |
+| Pickup Orders | Takeaway | Pickup time, instructions, QR verification architecture |
+| About Us | Brand Story | Emotionally warm brand narrative |
+| Contact Us | Support | Contact form + support channels |
+| Privacy Policy | Legal | CMS-driven content |
+| Terms | Legal | CMS-driven content |
+| 404 Page | Recovery | Friendly recovery with search and featured restaurants |
+
+## 3. Core Processes
+
+### 3.1 Primary Customer Flows (Natural Language)
+- Discovery → Restaurant → Food details → Cart → Checkout → Payment → Success → Live tracking → Delivered → Review → Reorder.
+- Coupons/wallet/referrals apply at checkout with real-time validation and recalculation.
+- Reels feed drives “add to cart” and deep links to restaurant details.
+- Pickup orders follow a parallel checkout with pickup instructions and optional QR verification architecture.
+
+### 3.2 Flow Diagram (Mermaid)
+```mermaid
+flowchart TD
+  A["Open App"] --> B["Detect/Select Location"]
+  B --> C["Browse/Search/Reels"]
+  C --> D["Restaurant Details"]
+  D --> E["Food Item Modal"]
+  E --> F["Cart"]
+  F --> G["Checkout"]
+  G --> H["Apply Coupon/Wallet"]
+  H --> I["Pay (COD/UPI/Wallet)"]
+  I --> J["Order Success"]
+  J --> K["Live Tracking"]
+  K --> L["Delivered"]
+  L --> M["Rate & Review"]
+  L --> N["Reorder"]
+```
+
+## 4. User Interface Design
+
+### 4.1 Design Style
+- Primary theme: bold yellow gradients (hero, CTAs) + warm white backgrounds.
+- Accent: subtle black/charcoal lines and micro-shadows; premium rounded cards.
+- Typography: modern, clean, slightly “editorial” headings; highly legible body.
+- Layout: mobile-first; sticky CTAs; content rails (horizontal scroll) for speed and dopamine loops.
+- Motion: smooth transitions, staggered reveals, shimmer/skeleton loaders for perceived performance.
+- States: premium empty states, error recovery with next best action.
+- Dark mode: architecture-ready (token-based theming).
+
+### 4.2 Page Design Overview
+| Page Name | Module Name | UI Elements |
+|-----------|-------------|-------------|
+| Landing | Hero | Gradient mesh background, bold headline, sticky search CTA, trust chips |
+| Home | Rails | Horizontal rails, quick add, shimmer loaders, “reorder” prominent card |
+| Restaurant | Menu | Sticky category tabs, item cards with variant badges, filter pills |
+| Reels | Feed | Full-height snap scrolling, mute toggle, bottom sheet product card |
+| Cart | Summary | Bottom sticky checkout bar, upsell cards, lightweight editable items |
+| Tracking | Timeline | Stepper timeline, driver card, ETA chip, map container placeholder |
+
+### 4.3 Responsiveness & Accessibility
+- Mobile-first breakpoints with touch-first controls and large tap targets.
+- Semantic HTML, aria labels for interactive components, keyboard-friendly modals.
+- Images: lazy loading, responsive sizes, blurred placeholder architecture.
+
+## 5. SEO Requirements (Customer Web)
+- SEO-friendly URLs: restaurants by slug, categories by slug, offers by code/slug.
+- Meta tags + OpenGraph per page; canonical URLs; structured data for restaurants/menus.
+- Sitemap and robots.txt architecture; city/category landing pages for crawl depth.
+
+## 6. Non-Functional Requirements
+- Performance: server-side caching architecture, optimized DB indexing, CDN-ready assets.
+- Security: CSRF, XSS prevention, prepared statements only, secure sessions, rate limiting structure.
+- Observability: request logging, audit log architecture, error handling conventions.
+
+## 7. Release Scope (MVP → V1)
+- MVP: discovery, restaurant/menu, cart/checkout, payments (COD + “mock UPI”), order status, wallet ledger, coupon engine, addresses, auth, order history.
+- V1: reels, referrals, cashback automation, delivery partner module, admin and vendor dashboards, AI module scaffolding, tracking location polling/websocket-ready.

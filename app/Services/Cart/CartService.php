@@ -1,0 +1,148 @@
+<?php
+declare(strict_types=1);
+
+namespace App\Services\Cart;
+
+final class CartService
+{
+    public function __construct(private readonly \PDO $pdo) {}
+
+    public function ensureCart(int $userId): int
+    {
+        $this->pdo->prepare('INSERT IGNORE INTO carts (user_id, created_at, updated_at) VALUES (?, NOW(), NOW())')->execute([$userId]);
+        $st = $this->pdo->prepare('SELECT id FROM carts WHERE user_id = ? LIMIT 1');
+        $st->execute([$userId]);
+        return (int)$st->fetchColumn();
+    }
+
+    /** @return array<string,mixed> */
+    public function getCart(int $userId): array
+    {
+        $cartId = $this->ensureCart($userId);
+        $cst = $this->pdo->prepare('SELECT * FROM carts WHERE id = ? LIMIT 1');
+        $cst->execute([$cartId]);
+        $cart = $cst->fetch();
+        $cart = is_array($cart) ? $cart : ['id' => $cartId];
+
+        $itemsSt = $this->pdo->prepare('SELECT ci.*, fi.name AS food_name, fi.restaurant_id, fi.is_veg, fi.spicy_level FROM cart_items ci INNER JOIN food_items fi ON fi.id = ci.food_item_id WHERE ci.cart_id = ? ORDER BY ci.id DESC');
+        $itemsSt->execute([$cartId]);
+        $items = $itemsSt->fetchAll();
+        $items = is_array($items) ? $items : [];
+
+        $addonSt = $this->pdo->prepare('SELECT cia.cart_item_id, cia.add_on_id, cia.price, a.name FROM cart_item_add_ons cia INNER JOIN add_ons a ON a.id = cia.add_on_id WHERE cia.cart_item_id IN (SELECT id FROM cart_items WHERE cart_id = ?)');
+        $addonSt->execute([$cartId]);
+        $addons = $addonSt->fetchAll();
+        $addons = is_array($addons) ? $addons : [];
+
+        $addonsByItem = [];
+        foreach ($addons as $a) {
+            $cid = (int)$a['cart_item_id'];
+            $addonsByItem[$cid] ??= [];
+            $addonsByItem[$cid][] = $a;
+        }
+
+        $subtotal = 0.0;
+        foreach ($items as &$it) {
+            $cid = (int)$it['id'];
+            $itAdd = $addonsByItem[$cid] ?? [];
+            $addonTotal = 0.0;
+            foreach ($itAdd as $aa) {
+                $addonTotal += (float)$aa['price'];
+            }
+            $unit = (float)$it['unit_price'] + $addonTotal;
+            $line = $unit * (int)$it['quantity'];
+            $subtotal += $line;
+            $it['add_ons'] = $itAdd;
+            $it['unit_total'] = round($unit, 2);
+            $it['line_total'] = round($line, 2);
+        }
+        unset($it);
+
+        return [
+            'cart' => $cart,
+            'items' => $items,
+            'subtotal' => round($subtotal, 2),
+        ];
+    }
+
+    /** @param list<int> $addOnIds */
+    public function addItem(int $userId, int $foodItemId, ?int $variantId, int $quantity, array $addOnIds, ?string $instructions): array
+    {
+        $cartId = $this->ensureCart($userId);
+
+        $fi = $this->pdo->prepare('SELECT id, restaurant_id, base_price FROM food_items WHERE id = ? AND deleted_at IS NULL AND is_active = 1 LIMIT 1');
+        $fi->execute([$foodItemId]);
+        $food = $fi->fetch();
+        if (!is_array($food)) {
+            throw new \RuntimeException('Food item not found');
+        }
+        $restaurantId = (int)$food['restaurant_id'];
+
+        $c = $this->pdo->prepare('SELECT restaurant_id FROM carts WHERE id = ? LIMIT 1');
+        $c->execute([$cartId]);
+        $cartRestaurantId = $c->fetchColumn();
+        if ($cartRestaurantId !== false && $cartRestaurantId !== null && (int)$cartRestaurantId !== $restaurantId) {
+            $this->clearCart($cartId);
+        }
+
+        $unitPrice = (float)$food['base_price'];
+        if ($variantId !== null) {
+            $v = $this->pdo->prepare('SELECT price FROM food_variants WHERE id = ? AND food_item_id = ? LIMIT 1');
+            $v->execute([$variantId, $foodItemId]);
+            $vp = $v->fetchColumn();
+            if ($vp !== false) {
+                $unitPrice = (float)$vp;
+            }
+        }
+
+        $this->pdo->prepare('UPDATE carts SET restaurant_id = ?, updated_at = NOW() WHERE id = ?')->execute([$restaurantId, $cartId]);
+
+        $st = $this->pdo->prepare('INSERT INTO cart_items (cart_id, food_item_id, variant_id, quantity, unit_price, instructions, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())');
+        $st->execute([$cartId, $foodItemId, $variantId, max(1, $quantity), $unitPrice, $instructions]);
+        $cartItemId = (int)$this->pdo->lastInsertId();
+
+        if ($addOnIds !== []) {
+            $in = implode(',', array_fill(0, count($addOnIds), '?'));
+            $a = $this->pdo->prepare('SELECT id, price FROM add_ons WHERE restaurant_id = ? AND id IN (' . $in . ') AND is_active = 1');
+            $a->execute(array_merge([$restaurantId], $addOnIds));
+            $rows = $a->fetchAll();
+            $rows = is_array($rows) ? $rows : [];
+            $ins = $this->pdo->prepare('INSERT IGNORE INTO cart_item_add_ons (cart_item_id, add_on_id, price) VALUES (?, ?, ?)');
+            foreach ($rows as $row) {
+                $ins->execute([$cartItemId, (int)$row['id'], (float)$row['price']]);
+            }
+        }
+
+        return $this->getCart($userId);
+    }
+
+    public function updateItem(int $userId, int $cartItemId, ?int $quantity, ?string $instructions): array
+    {
+        $cartId = $this->ensureCart($userId);
+        $st = $this->pdo->prepare('UPDATE cart_items SET quantity = COALESCE(?, quantity), instructions = COALESCE(?, instructions), updated_at = NOW() WHERE id = ? AND cart_id = ?');
+        $st->execute([$quantity, $instructions, $cartItemId, $cartId]);
+        return $this->getCart($userId);
+    }
+
+    public function removeItem(int $userId, int $cartItemId): array
+    {
+        $cartId = $this->ensureCart($userId);
+        $st = $this->pdo->prepare('DELETE FROM cart_items WHERE id = ? AND cart_id = ?');
+        $st->execute([$cartItemId, $cartId]);
+        return $this->getCart($userId);
+    }
+
+    public function applyCoupon(int $userId, int $couponId): array
+    {
+        $cartId = $this->ensureCart($userId);
+        $this->pdo->prepare('UPDATE carts SET coupon_id = ?, updated_at = NOW() WHERE id = ?')->execute([$couponId, $cartId]);
+        return $this->getCart($userId);
+    }
+
+    public function clearCart(int $cartId): void
+    {
+        $this->pdo->prepare('DELETE FROM cart_items WHERE cart_id = ?')->execute([$cartId]);
+        $this->pdo->prepare('UPDATE carts SET restaurant_id = NULL, coupon_id = NULL, tip_amount = 0, notes = NULL, updated_at = NOW() WHERE id = ?')->execute([$cartId]);
+    }
+}
+

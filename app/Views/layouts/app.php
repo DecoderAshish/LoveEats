@@ -1,0 +1,34 @@
+<?php
+declare(strict_types=1);
+
+use App\Support\Env;
+
+$appName = $appName ?? 'Love Eats';
+$title = $title ?? $appName;
+$description = $description ?? 'Bold, premium food delivery.';
+$csrf = $_SESSION['csrf_token'] ?? null;
+$baseUrl = getenv('APP_BASE_URL') ?: '';
+?>
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?></title>
+    <meta name="description" content="<?= htmlspecialchars($description, ENT_QUOTES, 'UTF-8') ?>" />
+    <link rel="canonical" href="<?= htmlspecialchars($baseUrl . ($_SERVER['REQUEST_URI'] ?? '/'), ENT_QUOTES, 'UTF-8') ?>" />
+    <meta property="og:title" content="<?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?>" />
+    <meta property="og:description" content="<?= htmlspecialchars($description, ENT_QUOTES, 'UTF-8') ?>" />
+    <meta property="og:type" content="website" />
+    <link rel="stylesheet" href="/assets/app.css" />
+    <script>window.__CSRF__ = <?= json_encode($csrf) ?>;</script>
+  </head>
+  <body class="le-body">
+    <?php require __DIR__ . '/../components/topbar.php'; ?>
+    <main class="le-main">
+      <?= $content ?? '' ?>
+    </main>
+    <?php require __DIR__ . '/../components/footer.php'; ?>
+    <script src="/assets/app.js" defer></script>
+  </body>
+</html>

@@ -1,0 +1,26 @@
+<?php
+declare(strict_types=1);
+
+namespace App\Middlewares;
+
+use App\Bootstrap\App;
+use App\Http\Request;
+use App\Http\Response;
+
+final class SecurityHeadersMiddleware implements MiddlewareInterface
+{
+    public function handle(Request $request, App $app, callable $next): Response
+    {
+        $response = $next($request, $app);
+
+        $csp = "default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+
+        return $response
+            ->withHeader('x-content-type-options', 'nosniff')
+            ->withHeader('x-frame-options', 'DENY')
+            ->withHeader('referrer-policy', 'strict-origin-when-cross-origin')
+            ->withHeader('permissions-policy', 'geolocation=(), microphone=(), camera=()')
+            ->withHeader('content-security-policy', $csp);
+    }
+}
+

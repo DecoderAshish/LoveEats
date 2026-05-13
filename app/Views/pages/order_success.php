@@ -1,0 +1,29 @@
+<?php
+declare(strict_types=1);
+
+$orderPublicId = $orderPublicId ?? '';
+?>
+<section class="le-hero" style="background:linear-gradient(135deg, rgba(255,227,106,.20), rgba(255,178,0,.08));">
+  <div class="le-hero__grid">
+    <div>
+      <h1 class="le-hero__title" style="color:var(--text)">Order placed</h1>
+      <p class="le-hero__subtitle" style="color:var(--muted)">Your cravings are in motion. We’ll keep it smooth and fast.</p>
+      <div class="le-chiprow">
+        <span class="le-chip">Order ID: <?= htmlspecialchars((string)$orderPublicId, ENT_QUOTES, 'UTF-8') ?></span>
+        <span class="le-chip">ETA 22 min</span>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+        <a class="le-btn" href="/orders/track/<?= urlencode((string)$orderPublicId) ?>">Live tracking</a>
+        <a class="le-nav__link" href="/orders" style="background:color-mix(in srgb,var(--surface) 88%, transparent);border:1px solid var(--line)">Order history</a>
+      </div>
+    </div>
+    <div class="le-card">
+      <div class="le-card__body">
+        <div class="le-badge">Referral boost</div>
+        <div style="margin-top:10px;font-weight:900">Invite a friend</div>
+        <div class="le-muted" style="margin-top:4px">Earn wallet bonus when they place their first order.</div>
+        <div style="margin-top:12px"><a class="le-btn" href="/referrals">Share</a></div>
+      </div>
+    </div>
+  </div>
+</section>
