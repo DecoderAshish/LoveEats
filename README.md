@@ -74,3 +74,4 @@ Open:
 - database/migrations/: SQL migrations
 - database/seeders/: demo seeders
 - scripts/: migrate/seed runners
+- public/uploads/: public user uploads (avatars, demo reels placeholders)

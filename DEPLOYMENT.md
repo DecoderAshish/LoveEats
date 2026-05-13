@@ -50,12 +50,12 @@ Seeders are safe to re-run for demo environments, but for production you typical
 Ensure these are writable by the PHP-FPM user:
 - `storage/logs`
 - `storage/cache`
-- `storage/uploads`
+- `public/uploads`
 
 ## 6) HTTPS
 Enable HTTPS via Let’s Encrypt (recommended). Cookies are configured for secure mode when HTTPS is detected.
 
 ## 7) Scaling Notes
 - Put `storage/cache` behind Redis for multi-instance deployments (cache interface is middleware-ready).
-- Serve `/public/assets` and `/storage/uploads` via CDN.
+- Serve `/public/assets` and `/public/uploads` via CDN.
 - Add read replicas for MySQL when analytics load grows.

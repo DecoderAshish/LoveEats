@@ -2,4 +2,5 @@
 /storage/logs/*
 /storage/cache/*
 /storage/uploads/*
-!/storage/uploads/demo/.keep
+/public/uploads/*
+!/public/uploads/demo/.keep

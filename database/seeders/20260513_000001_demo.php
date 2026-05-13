@@ -201,12 +201,12 @@ return static function (PDO $pdo): void {
     $couponStmt->execute(['FREED', 'Free delivery', 'Delivery fee waived above ₹249.', 'free_delivery', 0.00, null, 249.00, null, $mumbaiId, 8000, 2]);
 
     $reelStmt = $pdo->prepare('INSERT INTO reels (restaurant_id, food_item_id, video_path, poster_path, caption, likes_count, is_active) VALUES (?, ?, ?, ?, ?, ?, 1) ON DUPLICATE KEY UPDATE caption=VALUES(caption), is_active=VALUES(is_active)');
-    $reelStmt->execute([$sunriseId, $wrapId, '/storage/uploads/demo/reel1.mp4', '/storage/uploads/demo/reel1.jpg', 'The wrap that snaps back.', 1200]);
-    $reelStmt->execute([$sunriseId, $wrapId, '/storage/uploads/demo/reel2.mp4', '/storage/uploads/demo/reel2.jpg', 'Cheese pull, no apologies.', 980]);
+    $reelStmt->execute([$sunriseId, $wrapId, '/uploads/demo/reel1.mp4', '/uploads/demo/reel1.jpg', 'The wrap that snaps back.', 1200]);
+    $reelStmt->execute([$sunriseId, $wrapId, '/uploads/demo/reel2.mp4', '/uploads/demo/reel2.jpg', 'Cheese pull, no apologies.', 980]);
 
     $bannerStmt = $pdo->prepare('INSERT INTO banners (city_id, title, subtitle, image_path, link_url, placement, starts_at, ends_at, sort_order, is_active) VALUES (?, ?, ?, ?, ?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 14 DAY), ?, 1) ON DUPLICATE KEY UPDATE subtitle=VALUES(subtitle), is_active=VALUES(is_active)');
-    $bannerStmt->execute([$mumbaiId, 'Midnight cravings', 'Limited drops till 2 AM', '/storage/uploads/demo/banner_midnight.jpg', '/midnight', 'home', 10]);
-    $bannerStmt->execute([$mumbaiId, 'Couple meals', 'For two, for tonight', '/storage/uploads/demo/banner_couple.jpg', '/couples', 'landing', 20]);
+    $bannerStmt->execute([$mumbaiId, 'Midnight cravings', 'Limited drops till 2 AM', '/uploads/demo/banner_midnight.jpg', '/midnight', 'home', 10]);
+    $bannerStmt->execute([$mumbaiId, 'Couple meals', 'For two, for tonight', '/uploads/demo/banner_couple.jpg', '/couples', 'landing', 20]);
 
     $dpStmt = $pdo->prepare('INSERT INTO delivery_partners (name, phone, email, status, is_available, last_lat, last_lng, last_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW()) ON DUPLICATE KEY UPDATE name=VALUES(name), status=VALUES(status), is_available=VALUES(is_available)');
     $dpStmt->execute(['Priya Sharma', '9333333333', 'priya@partners.local', 'active', 1, 19.0605, 72.8305]);

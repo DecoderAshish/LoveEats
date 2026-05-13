@@ -61,7 +61,7 @@ final class UserController extends BaseApiController
         }
         $ext = $allowed[$mime];
         $name = 'avatar_' . $uid . '_' . Str::random(12) . '.' . $ext;
-        $dir = $app->rootPath() . '/storage/uploads/avatars';
+        $dir = $app->rootPath() . '/public/uploads/avatars';
         if (!is_dir($dir)) {
             @mkdir($dir, 0775, true);
         }
@@ -69,7 +69,7 @@ final class UserController extends BaseApiController
         if (!move_uploaded_file($tmp, $dest)) {
             return ApiResponse::error('UPLOAD_FAILED', 'Failed to store file', 500);
         }
-        $path = '/storage/uploads/avatars/' . $name;
+        $path = '/uploads/avatars/' . $name;
         $pdo = Database::pdo($app->config());
         $pdo->prepare('UPDATE users SET avatar_path = ?, updated_at = NOW() WHERE id = ?')->execute([$path, $uid]);
         return ApiResponse::ok(['avatar_path' => $path]);
