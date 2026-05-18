@@ -1,0 +1,42 @@
+<?php
+declare(strict_types=1);
+
+namespace App\Support;
+
+final class Logger
+{
+    private string $logFile;
+
+    public function __construct(string $logFile)
+    {
+        $this->logFile = $logFile;
+        $dir = dirname($logFile);
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0775, true);
+        }
+    }
+
+    /** @param array<string, mixed> $context */
+    public function info(string $message, array $context = []): void
+    {
+        $this->write('INFO', $message, $context);
+    }
+
+    /** @param array<string, mixed> $context */
+    public function error(string $message, array $context = []): void
+    {
+        $this->write('ERROR', $message, $context);
+    }
+
+    /** @param array<string, mixed> $context */
+    private function write(string $level, string $message, array $context): void
+    {
+        $payload = [
+            'ts' => gmdate('c'),
+            'level' => $level,
+            'message' => $message,
+            'context' => $context,
+        ];
+        @file_put_contents($this->logFile, json_encode($payload, JSON_UNESCAPED_SLASHES) . PHP_EOL, FILE_APPEND);
+    }
+}

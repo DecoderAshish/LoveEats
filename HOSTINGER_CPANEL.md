@@ -1,0 +1,96 @@
+# Hostinger cPanel Shared Hosting Deployment
+
+This guide targets Hostinger cPanel shared hosting (Apache + MySQL + phpMyAdmin).
+
+## 1) Create the MySQL Database
+1. cPanel → MySQL Databases
+2. Create:
+   - Database (example): `youruser_loveeats`
+   - User (example): `youruser_loveeats_user`
+3. Add user to database with ALL PRIVILEGES
+4. Note:
+   - DB_HOST is usually `localhost`
+   - DB_PORT is usually `3306`
+
+## 2) Upload Code
+Recommended (best security + easiest routing):
+1. cPanel → Domains
+2. Set the domain/subdomain Document Root to: `.../love-eats/public`
+3. Upload the full project folder `love-eats/` (so it contains `app/`, `routes/`, `database/`, `storage/`, `public/`, etc.)
+
+If you cannot change document root:
+- Put the whole project inside `public_html/` and then move `public/*` contents into `public_html/`.
+- Add an extra `public_html/.htaccess` rule to block access to `/app`, `/routes`, `/database`, `/scripts` and `.env`.
+
+## 3) .env Setup
+Create `.env` in the project root (same level as `app/`):
+
+```env
+APP_ENV=production
+APP_NAME="Love Eats"
+APP_BASE_URL=https://your-domain.tld
+APP_KEY=base64:CHANGE_ME
+JWT_SECRET=CHANGE_ME
+
+DB_HOST=localhost
+DB_PORT=3306
+DB_DATABASE=youruser_loveeats
+DB_USERNAME=youruser_loveeats_user
+DB_PASSWORD=YOUR_DB_PASSWORD
+
+UPLOAD_MAX_BYTES=5242880
+```
+
+Use strong values for `APP_KEY` and `JWT_SECRET`.
+
+## 4) URL Rewriting (Apache)
+This project includes routing rules in:
+- `public/.htaccess`
+
+Make sure mod_rewrite is enabled (usually enabled by default in Hostinger).
+
+## 5) Run Migrations
+### Option A: cPanel Terminal (preferred if available)
+1. cPanel → Terminal
+2. `cd` into the project root (where `scripts/migrate.php` exists)
+3. Run:
+
+```bash
+php scripts/migrate.php
+```
+
+### Option B: phpMyAdmin Import (works everywhere)
+1. cPanel → phpMyAdmin → select your DB
+2. Import these files in order:
+   - `database/migrations/20260513_000001_init.sql`
+   - `database/migrations/20260513_000002_auth_extras.sql`
+
+## 6) Seed Demo Data (optional)
+If you want demo content:
+
+```bash
+php scripts/seed.php
+```
+
+If you don’t have Terminal access, you can still seed by running the SQL inserts manually, but the provided seeder is faster.
+
+## 7) Writable Directories
+Make sure these exist and are writable (755/775):
+- `storage/logs`
+- `storage/cache`
+- `public/uploads`
+
+## 8) Verify
+Open:
+- `/` landing
+- `/login` login
+- `/restaurants` listing
+
+Demo credentials:
+- Customer: `demo@loveeats.local` / `Demo@12345`
+- Admin: `admin@loveeats.local` / `Admin@12345`
+
+## 9) Hosting Notes (Shared Hosting)
+- Enable HTTPS from Hostinger; `SessionMiddleware` auto-detects HTTPS for secure cookies.
+- Keep `.env` outside the public web root if possible; otherwise block it via `.htaccess`.
+- For production, disable OTP debug by ensuring `APP_ENV=production`.

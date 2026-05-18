@@ -1,0 +1,56 @@
+<?php
+declare(strict_types=1);
+
+namespace App\Middlewares;
+
+use App\Bootstrap\App;
+use App\Http\Request;
+use App\Http\Response;
+
+final class RateLimitMiddleware implements MiddlewareInterface
+{
+    private int $windowSeconds = 60;
+    private int $maxRequests = 120;
+
+    public function handle(Request $request, App $app, callable $next): Response
+    {
+        $ip = (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+        $key = hash('sha256', $ip . '|' . $request->path);
+        $dir = $app->rootPath() . '/storage/cache/ratelimit';
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0775, true);
+        }
+        $file = $dir . '/' . $key . '.json';
+
+        $now = time();
+        $bucket = ['start' => $now, 'count' => 0];
+        if (is_file($file)) {
+            $raw = file_get_contents($file);
+            $decoded = $raw === false ? null : json_decode($raw, true);
+            if (is_array($decoded) && isset($decoded['start'], $decoded['count'])) {
+                $bucket = $decoded;
+            }
+        }
+
+        if (($now - (int)$bucket['start']) >= $this->windowSeconds) {
+            $bucket = ['start' => $now, 'count' => 0];
+        }
+
+        $bucket['count'] = (int)$bucket['count'] + 1;
+        @file_put_contents($file, json_encode($bucket));
+
+        if ((int)$bucket['count'] > $this->maxRequests) {
+            if ($request->wantsJson()) {
+                return Response::json([
+                    'success' => false,
+                    'data' => null,
+                    'meta' => ['request_id' => bin2hex(random_bytes(8))],
+                    'error' => ['code' => 'RATE_LIMITED', 'message' => 'Too many requests'],
+                ], 429);
+            }
+            return Response::html('Too many requests.', 429);
+        }
+
+        return $next($request, $app);
+    }
+}

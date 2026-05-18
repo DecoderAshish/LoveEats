@@ -1,0 +1,40 @@
+<?php
+declare(strict_types=1);
+
+namespace App\Controllers\Api;
+
+use App\Bootstrap\App;
+use App\Http\Request;
+use App\Support\ApiResponse;
+use App\Support\Auth;
+use App\Support\Database;
+
+final class TrackingController extends BaseApiController
+{
+    public function snapshot(Request $request, App $app, array $params): \App\Http\Response
+    {
+        $uid = Auth::userId();
+        if ($uid === null) {
+            return ApiResponse::error('UNAUTHENTICATED', 'Authentication required', 401);
+        }
+        $id = isset($params['id']) ? (int)$params['id'] : 0;
+        if ($id <= 0) {
+            return ApiResponse::error('VALIDATION_ERROR', 'Invalid id', 422);
+        }
+        $pdo = Database::pdo($app->config());
+        $o = $pdo->prepare('SELECT id, order_public_id, status, created_at FROM orders WHERE id = ? AND user_id = ? LIMIT 1');
+        $o->execute([$id, $uid]);
+        $order = $o->fetch();
+        if (!is_array($order)) {
+            return ApiResponse::error('NOT_FOUND', 'Order not found', 404);
+        }
+        $st = $pdo->prepare('SELECT dt.status, dt.last_lat, dt.last_lng, dt.eta_minutes, dt.timeline, dt.updated_at, dp.id AS driver_id, dp.name AS driver_name, dp.phone AS driver_phone, dp.is_available FROM delivery_tracking dt LEFT JOIN delivery_partners dp ON dp.id = dt.delivery_partner_id WHERE dt.order_id = ? LIMIT 1');
+        $st->execute([$id]);
+        $tracking = $st->fetch();
+        if (is_array($tracking) && isset($tracking['timeline'])) {
+            $decoded = json_decode((string)$tracking['timeline'], true);
+            $tracking['timeline'] = is_array($decoded) ? $decoded : [];
+        }
+        return ApiResponse::ok(['order' => $order, 'tracking' => $tracking ?: null]);
+    }
+}

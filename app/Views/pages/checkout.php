@@ -1,0 +1,159 @@
+<?php
+declare(strict_types=1);
+?>
+<section class="le-hero" style="background:linear-gradient(135deg, rgba(255,227,106,.16), rgba(255,178,0,.08));">
+  <div class="le-hero__grid">
+    <div>
+      <h1 class="le-hero__title" style="color:var(--text)">Checkout</h1>
+      <p class="le-hero__subtitle" style="color:var(--muted)">Coupon + wallet partial pay + pickup option (API wired next).</p>
+      <div class="le-chiprow">
+        <span class="le-chip">COD</span>
+        <span class="le-chip">UPI</span>
+        <span class="le-chip">Wallet</span>
+        <span class="le-chip">Pickup</span>
+      </div>
+    </div>
+    <div class="le-card">
+      <div class="le-card__body">
+        <div class="le-badge">Cashback</div>
+        <div style="margin-top:10px;font-weight:900">Earn ₹18</div>
+        <div class="le-muted" style="margin-top:4px">Cashback rules are applied by CheckoutService.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="le-section">
+  <div class="le-grid2">
+    <div class="le-card">
+      <div class="le-card__body">
+        <div class="le-badge">Delivery address</div>
+        <div style="margin-top:12px;display:grid;gap:10px" id="le_addr_list"></div>
+        <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+          <span class="le-chip">Leave at door</span>
+          <span class="le-chip">Call on arrival</span>
+          <span class="le-chip">Extra napkins</span>
+        </div>
+      </div>
+    </div>
+    <div class="le-card">
+      <div class="le-card__body">
+        <div class="le-badge">Payment</div>
+        <div style="margin-top:12px;display:grid;gap:10px">
+          <label style="display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:16px;padding:12px">
+            <input type="radio" name="le_pay" value="upi" checked />
+            <div>
+              <div style="font-weight:900">UPI</div>
+              <div class="le-muted" style="font-size:13px">Fast checkout</div>
+            </div>
+          </label>
+          <label style="display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:16px;padding:12px">
+            <input type="radio" name="le_pay" value="wallet" />
+            <div>
+              <div style="font-weight:900">Wallet</div>
+              <div class="le-muted" style="font-size:13px">Partial pay supported</div>
+            </div>
+          </label>
+          <label style="display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:16px;padding:12px">
+            <input type="radio" name="le_pay" value="cod" />
+            <div>
+              <div style="font-weight:900">Cash on Delivery</div>
+              <div class="le-muted" style="font-size:13px">Pay at door</div>
+            </div>
+          </label>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:10px">
+          <input class="le-input" id="le_coupon" placeholder="Coupon code" style="border:1px solid var(--line);border-radius:14px;padding:12px;background:color-mix(in srgb,var(--surface) 92%, transparent)" />
+          <button class="le-btn" type="button" data-action="apply-coupon">Apply</button>
+        </div>
+        <div class="le-muted" id="le_preview" style="margin-top:12px;font-size:13px"></div>
+        <div style="margin-top:14px">
+          <button class="le-btn" type="button" style="width:100%" data-action="place-order">Place order</button>
+        </div>
+        <div class="le-muted" id="le_checkout_hint" style="margin-top:10px;font-size:13px"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  (() => {
+    const addrList = document.getElementById('le_addr_list')
+    const previewEl = document.getElementById('le_preview')
+    const hintEl = document.getElementById('le_checkout_hint')
+    let selectedAddressId = null
+
+    const loadAddresses = async () => {
+      const res = await window.leApi('/api/v1/addresses')
+      if (!res.ok) {
+        addrList.innerHTML = '<div class="le-muted">Login required. <a href="/login" style="text-decoration:underline">Go to login</a>.</div>'
+        return
+      }
+      const items = res.data.data.items || []
+      if (!items.length) {
+        addrList.innerHTML = '<div class="le-muted">No addresses yet. Add one from Profile → Addresses (API enabled).</div>'
+        return
+      }
+      selectedAddressId = items[0].id
+      addrList.innerHTML = items.map((a, idx) => `
+        <label style="display:flex;gap:10px;align-items:start;border:1px solid var(--line);border-radius:16px;padding:12px">
+          <input type="radio" name="le_addr" value="${a.id}" ${idx === 0 ? 'checked' : ''} />
+          <div>
+            <div style="font-weight:900">${a.label}</div>
+            <div class="le-muted" style="margin-top:2px;font-size:13px">${a.address_line1}${a.address_line2 ? (', '+a.address_line2) : ''}</div>
+          </div>
+        </label>
+      `).join('')
+    }
+
+    const loadPreview = async () => {
+      if (!selectedAddressId) return
+      const res = await window.leApi('/api/v1/checkout/preview', { method: 'POST', body: JSON.stringify({ address_id: selectedAddressId }) })
+      if (!res.ok) {
+        previewEl.textContent = res.data?.error?.message || 'Preview failed'
+        return
+      }
+      const p = res.data.data.pricing
+      previewEl.textContent = `Subtotal ₹${Number(p.subtotal).toFixed(0)} + taxes ₹${Number(p.taxes).toFixed(0)} + delivery ₹${Number(p.delivery_fee).toFixed(0)} − discount ₹${Number(p.discount).toFixed(0)} = Total ₹${Number(p.total).toFixed(0)} · Cashback est. ₹${Number(p.cashback_estimate).toFixed(0)}`
+    }
+
+    document.addEventListener('change', (e) => {
+      const t = e.target
+      if (!(t instanceof HTMLInputElement)) return
+      if (t.name === 'le_addr') {
+        selectedAddressId = Number(t.value)
+        loadPreview()
+      }
+    })
+
+    document.addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-action]')
+      if (!btn) return
+      const action = btn.getAttribute('data-action')
+      if (action === 'apply-coupon') {
+        const code = document.getElementById('le_coupon').value.trim()
+        if (!code) return
+        const res = await window.leApi('/api/v1/cart/apply-coupon', { method: 'POST', body: JSON.stringify({ code }) })
+        if (!res.ok) {
+          hintEl.textContent = res.data?.error?.message || 'Coupon apply failed'
+          return
+        }
+        hintEl.textContent = 'Coupon applied.'
+        loadPreview()
+      }
+      if (action === 'place-order') {
+        if (!selectedAddressId) return
+        const pay = document.querySelector('input[name="le_pay"]:checked')?.value || 'upi'
+        const res = await window.leApi('/api/v1/checkout/place-order', { method: 'POST', body: JSON.stringify({ address_id: selectedAddressId, payment_method: pay, wallet_use: 0 }) })
+        if (!res.ok) {
+          hintEl.textContent = res.data?.error?.message || 'Checkout failed'
+          return
+        }
+        const op = res.data.data.order_public_id
+        location.href = '/orders/success/' + encodeURIComponent(op)
+      }
+    })
+
+    loadAddresses().then(loadPreview)
+  })()
+</script>

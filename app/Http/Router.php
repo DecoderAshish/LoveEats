@@ -1,0 +1,136 @@
+<?php
+declare(strict_types=1);
+
+namespace App\Http;
+
+use App\Bootstrap\App;
+
+final class Router
+{
+    /** @var array<string, list<array{pattern:string, regex:string, keys:list<string>, handler:callable, middleware:list<class-string> }>> */
+    private array $routes = [];
+
+    /** @var list<class-string> */
+    private array $groupMiddleware = [];
+    private string $groupPrefix = '';
+
+    /** @param list<class-string> $middleware */
+    public function group(string $prefix, array $middleware, callable $callback): void
+    {
+        $prevPrefix = $this->groupPrefix;
+        $prevMiddleware = $this->groupMiddleware;
+
+        $this->groupPrefix = $prevPrefix . rtrim($prefix, '/');
+        $this->groupMiddleware = array_values(array_merge($prevMiddleware, $middleware));
+
+        $callback($this);
+
+        $this->groupPrefix = $prevPrefix;
+        $this->groupMiddleware = $prevMiddleware;
+    }
+
+    public function get(string $pattern, callable $handler, array $middleware = []): void
+    {
+        $this->add('GET', $pattern, $handler, $middleware);
+    }
+
+    public function post(string $pattern, callable $handler, array $middleware = []): void
+    {
+        $this->add('POST', $pattern, $handler, $middleware);
+    }
+
+    public function patch(string $pattern, callable $handler, array $middleware = []): void
+    {
+        $this->add('PATCH', $pattern, $handler, $middleware);
+    }
+
+    public function delete(string $pattern, callable $handler, array $middleware = []): void
+    {
+        $this->add('DELETE', $pattern, $handler, $middleware);
+    }
+
+    /** @param list<class-string> $middleware */
+    private function add(string $method, string $pattern, callable $handler, array $middleware): void
+    {
+        $method = strtoupper($method);
+        $fullPattern = $this->groupPrefix . $pattern;
+        $fullPattern = '/' . ltrim($fullPattern, '/');
+
+        [$regex, $keys] = $this->compile($fullPattern);
+        $this->routes[$method] ??= [];
+        $this->routes[$method][] = [
+            'pattern' => $fullPattern,
+            'regex' => $regex,
+            'keys' => $keys,
+            'handler' => $handler,
+            'middleware' => array_values(array_merge($this->groupMiddleware, $middleware)),
+        ];
+    }
+
+    /** @return array{0:string,1:list<string>} */
+    private function compile(string $pattern): array
+    {
+        $keys = [];
+        $regex = preg_replace_callback('/\{([a-zA-Z_][a-zA-Z0-9_]*)\}/', static function (array $m) use (&$keys): string {
+            $keys[] = $m[1];
+            return '([^/]+)';
+        }, $pattern);
+        $regex = '#^' . ($regex ?? $pattern) . '$#';
+        return [$regex, $keys];
+    }
+
+    public function dispatch(Request $request, App $app): Response
+    {
+        $method = $request->method;
+        $routes = $this->routes[$method] ?? [];
+        foreach ($routes as $route) {
+            if (!preg_match($route['regex'], $request->path, $matches)) {
+                continue;
+            }
+
+            $params = [];
+            foreach ($route['keys'] as $idx => $key) {
+                $params[$key] = $matches[$idx + 1] ?? null;
+            }
+
+            $handler = $route['handler'];
+            $middleware = $route['middleware'];
+
+            $core = static function (Request $req, App $app) use ($handler, $params): Response {
+                return $handler($req, $app, $params);
+            };
+
+            $pipeline = array_reduce(
+                array_reverse($middleware),
+                static function (callable $next, string $middlewareClass) use ($app): callable {
+                    return static function (Request $req, App $app2) use ($middlewareClass, $next): Response {
+                        $mw = new $middlewareClass();
+                        return $mw->handle($req, $app2, $next);
+                    };
+                },
+                $core
+            );
+
+            return $pipeline($request, $app);
+        }
+
+        if ($request->wantsJson()) {
+            return Response::json([
+                'success' => false,
+                'data' => null,
+                'meta' => ['request_id' => bin2hex(random_bytes(8))],
+                'error' => ['code' => 'NOT_FOUND', 'message' => 'Not found'],
+            ], 404);
+        }
+
+        $html = '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+            . '<title>404 — Love Eats</title>'
+            . '<body style="margin:0;font-family:system-ui;background:#fff9ef;color:#171717">'
+            . '<div style="max-width:760px;margin:0 auto;padding:44px 18px">'
+            . '<div style="font-size:48px;font-weight:900;letter-spacing:-.04em">404</div>'
+            . '<div style="margin-top:8px;font-size:16px;opacity:.72">Page not found. Let’s get you back to cravings.</div>'
+            . '<div style="margin-top:18px"><a href="/home" style="display:inline-block;background:linear-gradient(135deg,#ffcc3d,#ffb200);padding:12px 14px;border-radius:14px;font-weight:800;color:#1a1407;text-decoration:none">Go home</a></div>'
+            . '</div></body>';
+        return Response::html($html, 404);
+    }
+}
