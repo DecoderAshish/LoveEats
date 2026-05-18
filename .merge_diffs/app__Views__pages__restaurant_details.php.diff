@@ -1,0 +1,143 @@
+diff --git a/app/Views/pages/restaurant_details.php b/app/Views/pages/restaurant_details.php
+new file mode 100644
+index 0000000..01831a6
+--- /dev/null
++++ b/app/Views/pages/restaurant_details.php
+@@ -0,0 +1,137 @@
++<?php
++declare(strict_types=1);
++
++$slug = $slug ?? '';
++?>
++<section class="le-hero" style="background:linear-gradient(135deg, rgba(255,227,106,.20), rgba(255,178,0,.08));">
++  <div class="le-hero__grid">
++    <div>
++      <h1 class="le-hero__title" style="color:var(--text)" id="le_rest_name">Loading…</h1>
++      <p class="le-hero__subtitle" style="color:var(--muted)" id="le_rest_meta"><?= htmlspecialchars((string)$slug, ENT_QUOTES, 'UTF-8') ?></p>
++      <div class="le-chiprow">
++        <span class="le-chip" id="le_rest_rating">★</span>
++        <span class="le-chip">Fast</span>
++        <span class="le-chip">Live menu</span>
++      </div>
++    </div>
++    <div class="le-card">
++      <div class="le-card__body">
++        <div class="le-badge">Today’s pick</div>
++        <div style="margin-top:10px;font-weight:900" id="le_pick_name">Loading…</div>
++        <div class="le-muted" style="margin-top:4px" id="le_pick_meta">Variants + add-ons available</div>
++        <div style="margin-top:12px;display:flex;gap:10px">
++          <button class="le-btn" type="button" data-action="add-pick">Add to cart</button>
++          <a class="le-nav__link" href="/reels" style="background:color-mix(in srgb,var(--surface) 88%, transparent);border:1px solid var(--line)">Reels</a>
++        </div>
++      </div>
++    </div>
++  </div>
++</section>
++
++<section class="le-section">
++  <div class="le-section__head">
++    <h2 class="le-section__title">Recommended</h2>
++    <a class="le-section__link" href="/reels">Watch reels</a>
++  </div>
++  <div class="le-rail">
++    <?php for ($i = 0; $i < 8; $i++): ?>
++      <div class="le-card">
++        <div class="le-card__body">
++          <div class="le-badge">Veg · 420 kcal</div>
++          <div style="margin-top:10px;font-weight:900">Cheesy Volcano Fries</div>
++          <div class="le-muted" style="margin-top:4px">₹179</div>
++          <div style="margin-top:12px;display:flex;gap:10px">
++            <button class="le-btn" type="button">Add</button>
++            <span class="le-muted" style="font-size:13px">Add-ons</span>
++          </div>
++        </div>
++      </div>
++    <?php endfor; ?>
++  </div>
++</section>
++
++<section class="le-section">
++  <div class="le-section__head">
++    <h2 class="le-section__title">Menu</h2>
++    <span class="le-section__link">Sticky category tabs (next)</span>
++  </div>
++  <div class="le-grid2" id="le_menu_grid"></div>
++</section>
++
++<script>
++  (() => {
++    const slug = <?= json_encode((string)$slug) ?>
++    const nameEl = document.getElementById('le_rest_name')
++    const metaEl = document.getElementById('le_rest_meta')
++    const ratingEl = document.getElementById('le_rest_rating')
++    const pickNameEl = document.getElementById('le_pick_name')
++    const pickMetaEl = document.getElementById('le_pick_meta')
++    const menuGrid = document.getElementById('le_menu_grid')
++
++    window.leApi('/api/v1/restaurants/slug/' + encodeURIComponent(slug)).then((res) => {
++      if (!res.ok) {
++        nameEl.textContent = 'Not found'
++        return
++      }
++      const data = res.data.data
++      const r = data.restaurant
++      const cuisines = (() => { try { return JSON.parse(r.cuisines || '[]') } catch { return [] } })()
++      nameEl.textContent = r.name
++      metaEl.textContent = cuisines.slice(0, 4).join(' · ')
++      ratingEl.textContent = '★ ' + Number(r.rating || 0).toFixed(1)
++
++      const items = data.menu.items || []
++      const pick = items[0]
++      if (pick) {
++        pickNameEl.textContent = pick.name
++        pickMetaEl.textContent = '₹' + Number(pick.base_price).toFixed(0) + ' · Add-ons available'
++        document.querySelector('[data-action="add-pick"]').dataset.foodId = pick.id
++      }
++
++      const cats = data.menu.categories || []
++      const byCat = new Map()
++      for (const it of items) {
++        const cid = it.food_category_id || 0
++        if (!byCat.has(cid)) byCat.set(cid, [])
++        byCat.get(cid).push(it)
++      }
++
++      menuGrid.innerHTML = cats.map((c) => {
++        const list = byCat.get(c.id) || []
++        if (!list.length) return ''
++        return `
++          <div class="le-card">
++            <div class="le-card__body">
++              <div class="le-badge">${c.name}</div>
++              <div style="margin-top:10px;display:grid;gap:10px">
++                ${list.slice(0, 6).map((it) => `
++                  <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding-top:10px">
++                    <div>
++                      <div style="font-weight:880">${it.name}</div>
++                      <div class="le-muted" style="margin-top:2px;font-size:13px">₹${Number(it.base_price).toFixed(0)} · ${it.is_veg ? 'Veg' : 'Non-veg'}</div>
++                    </div>
++                    <button class="le-btn" type="button" style="padding:10px 12px" data-action="add-item" data-food-id="${it.id}">Add</button>
++                  </div>
++                `).join('')}
++              </div>
++            </div>
++          </div>
++        `
++      }).join('')
++    })
++
++    document.addEventListener('click', async (e) => {
++      const btn = e.target.closest('[data-action="add-item"],[data-action="add-pick"]')
++      if (!btn) return
++      const foodId = Number(btn.dataset.foodId || btn.dataset.foodId || btn.getAttribute('data-food-id'))
++      if (!foodId) return
++      const res = await window.leApi('/api/v1/cart/items', { method: 'POST', body: JSON.stringify({ food_item_id: foodId, quantity: 1 }) })
++      if (res.ok) {
++        btn.textContent = 'Added'
++        setTimeout(() => (btn.textContent = 'Add'), 900)
++      } else {
++        alert(res.data?.error?.message || 'Login required. Go to /login.')
++      }
++    })
++  })()
++</script>

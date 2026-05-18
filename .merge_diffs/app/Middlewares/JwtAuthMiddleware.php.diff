@@ -1,0 +1,54 @@
+diff --git a/app/Middlewares/JwtAuthMiddleware.php b/app/Middlewares/JwtAuthMiddleware.php
+new file mode 100644
+index 0000000..3248438
+--- /dev/null
++++ b/app/Middlewares/JwtAuthMiddleware.php
+@@ -0,0 +1,48 @@
++<?php
++declare(strict_types=1);
++
++namespace App\Middlewares;
++
++use App\Bootstrap\App;
++use App\Http\Request;
++use App\Support\ApiResponse;
++use App\Support\Auth;
++use App\Support\Database;
++use App\Services\Auth\JwtService;
++
++final class JwtAuthMiddleware implements MiddlewareInterface
++{
++    public function handle(Request $request, App $app, callable $next): \App\Http\Response
++    {
++        $authHeader = $request->header('authorization');
++        if ($authHeader === null || !preg_match('/^Bearer\s+(.+)$/i', $authHeader, $m)) {
++            return ApiResponse::error('UNAUTHENTICATED', 'Authentication required', 401);
++        }
++
++        $token = trim($m[1]);
++        $jwt = new JwtService((string)$app->config()->get('app.jwt_secret'));
++        $claims = $jwt->decode($token);
++        if ($claims === null) {
++            return ApiResponse::error('UNAUTHENTICATED', 'Invalid token', 401);
++        }
++
++        $userId = isset($claims['uid']) ? (int)$claims['uid'] : null;
++        $role = isset($claims['role']) ? (string)$claims['role'] : null;
++        $sessionId = isset($claims['sid']) ? (int)$claims['sid'] : null;
++        if ($userId === null || $sessionId === null) {
++            return ApiResponse::error('UNAUTHENTICATED', 'Invalid token', 401);
++        }
++
++        $pdo = Database::pdo($app->config());
++        $st = $pdo->prepare('SELECT revoked_at FROM sessions WHERE id = ? AND user_id = ? LIMIT 1');
++        $st->execute([$sessionId, $userId]);
++        $revokedAt = $st->fetchColumn();
++        if ($revokedAt === false || $revokedAt !== null) {
++            return ApiResponse::error('UNAUTHENTICATED', 'Session revoked', 401);
++        }
++        $pdo->prepare('UPDATE sessions SET last_seen_at = NOW() WHERE id = ?')->execute([$sessionId]);
++        Auth::set($userId, $role, $sessionId);
++
++        return $next($request, $app);
++    }
++}

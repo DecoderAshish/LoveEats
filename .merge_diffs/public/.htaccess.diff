@@ -1,0 +1,15 @@
+diff --git a/public/.htaccess b/public/.htaccess
+new file mode 100644
+index 0000000..90afed4
+--- /dev/null
++++ b/public/.htaccess
+@@ -0,0 +1,9 @@
++RewriteEngine On
++
++Options -Indexes
++
++RewriteCond %{REQUEST_FILENAME} -f [OR]
++RewriteCond %{REQUEST_FILENAME} -d
++RewriteRule ^ - [L]
++
++RewriteRule ^ index.php [L]

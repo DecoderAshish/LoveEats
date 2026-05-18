@@ -1,0 +1,54 @@
+diff --git a/app/Views/pages/reels.php b/app/Views/pages/reels.php
+new file mode 100644
+index 0000000..ee87f59
+--- /dev/null
++++ b/app/Views/pages/reels.php
+@@ -0,0 +1,48 @@
++<?php
++declare(strict_types=1);
++?>
++<section class="le-hero" style="background:linear-gradient(135deg, rgba(255,227,106,.16), rgba(255,178,0,.10));">
++  <div class="le-hero__grid">
++    <div>
++      <h1 class="le-hero__title" style="color:var(--text)">Reels</h1>
++      <p class="le-hero__subtitle" style="color:var(--muted)">Autoplay, mute/unmute, add-to-cart from reel (API-wired next).</p>
++      <div class="le-chiprow">
++        <span class="le-chip">Snap scroll</span>
++        <span class="le-chip">Add from reel</span>
++        <span class="le-chip">Restaurant redirect</span>
++      </div>
++    </div>
++    <div class="le-card">
++      <div class="le-card__body">
++        <div class="le-badge">Prototype feed</div>
++        <div class="le-muted" style="margin-top:10px">Uses placeholders until reels uploads + APIs are enabled.</div>
++      </div>
++    </div>
++  </div>
++</section>
++
++<section class="le-section">
++  <div style="display:grid;gap:12px">
++    <?php for ($i = 0; $i < 4; $i++): ?>
++      <div class="le-card" style="border-radius:28px;overflow:hidden">
++        <div style="display:grid;grid-template-columns:1fr;min-height:520px">
++          <div style="background:linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.34));position:relative">
++            <div class="le-skeleton" style="position:absolute;inset:0;border-radius:0"></div>
++            <div style="position:absolute;inset:auto 14px 14px 14px;display:flex;align-items:end;justify-content:space-between;gap:12px">
++              <div>
++                <div class="le-badge" style="background:rgba(255,227,106,.55)">Sunrise Kitchen</div>
++                <div style="margin-top:10px;font-weight:900;font-size:18px;color:#fff">Cheesy Volcano Fries</div>
++                <div style="margin-top:4px;color:rgba(255,255,255,.78);font-size:13px">Tap to open item</div>
++              </div>
++              <div style="display:flex;flex-direction:column;gap:10px">
++                <button class="le-iconbtn" type="button" style="width:52px;height:52px;border-radius:18px"><span class="le-iconbtn__dot"></span></button>
++                <button class="le-iconbtn" type="button" style="width:52px;height:52px;border-radius:18px"><span class="le-iconbtn__dot"></span></button>
++                <button class="le-btn" type="button" style="padding:12px 14px;border-radius:18px">Add</button>
++              </div>
++            </div>
++          </div>
++        </div>
++      </div>
++    <?php endfor; ?>
++  </div>
++</section>

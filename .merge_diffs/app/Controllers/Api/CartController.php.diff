@@ -1,0 +1,108 @@
+diff --git a/app/Controllers/Api/CartController.php b/app/Controllers/Api/CartController.php
+new file mode 100644
+index 0000000..9299a48
+--- /dev/null
++++ b/app/Controllers/Api/CartController.php
+@@ -0,0 +1,102 @@
++<?php
++declare(strict_types=1);
++
++namespace App\Controllers\Api;
++
++use App\Bootstrap\App;
++use App\Http\Request;
++use App\Services\Cart\CartService;
++use App\Support\ApiResponse;
++use App\Support\Auth;
++use App\Support\Database;
++
++final class CartController extends BaseApiController
++{
++    private function service(App $app): CartService
++    {
++        return new CartService(Database::pdo($app->config()));
++    }
++
++    public function get(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $uid = Auth::userId();
++        if ($uid === null) {
++            return ApiResponse::error('UNAUTHENTICATED', 'Authentication required', 401);
++        }
++        return ApiResponse::ok($this->service($app)->getCart($uid));
++    }
++
++    public function addItem(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $uid = Auth::userId();
++        if ($uid === null) {
++            return ApiResponse::error('UNAUTHENTICATED', 'Authentication required', 401);
++        }
++        $foodItemId = isset($request->body['food_item_id']) ? (int)$request->body['food_item_id'] : 0;
++        $variantId = isset($request->body['variant_id']) ? (int)$request->body['variant_id'] : null;
++        $quantity = isset($request->body['quantity']) ? (int)$request->body['quantity'] : 1;
++        $instructions = isset($request->body['instructions']) ? trim((string)$request->body['instructions']) : null;
++        $addOnIds = $request->body['add_on_ids'] ?? [];
++        $addOnIds = is_array($addOnIds) ? array_values(array_filter(array_map('intval', $addOnIds))) : [];
++        if ($foodItemId <= 0) {
++            return ApiResponse::error('VALIDATION_ERROR', 'food_item_id is required', 422);
++        }
++        try {
++            $cart = $this->service($app)->addItem($uid, $foodItemId, $variantId, $quantity, $addOnIds, $instructions);
++            return ApiResponse::ok($cart);
++        } catch (\Throwable $e) {
++            return ApiResponse::error('CART_ADD_FAILED', $e->getMessage(), 400);
++        }
++    }
++
++    public function updateItem(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $uid = Auth::userId();
++        if ($uid === null) {
++            return ApiResponse::error('UNAUTHENTICATED', 'Authentication required', 401);
++        }
++        $id = isset($params['id']) ? (int)$params['id'] : 0;
++        if ($id <= 0) {
++            return ApiResponse::error('VALIDATION_ERROR', 'Invalid id', 422);
++        }
++        $quantity = array_key_exists('quantity', $request->body) ? (int)$request->body['quantity'] : null;
++        $instructions = array_key_exists('instructions', $request->body) ? trim((string)$request->body['instructions']) : null;
++        $cart = $this->service($app)->updateItem($uid, $id, $quantity, $instructions);
++        return ApiResponse::ok($cart);
++    }
++
++    public function removeItem(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $uid = Auth::userId();
++        if ($uid === null) {
++            return ApiResponse::error('UNAUTHENTICATED', 'Authentication required', 401);
++        }
++        $id = isset($params['id']) ? (int)$params['id'] : 0;
++        if ($id <= 0) {
++            return ApiResponse::error('VALIDATION_ERROR', 'Invalid id', 422);
++        }
++        $cart = $this->service($app)->removeItem($uid, $id);
++        return ApiResponse::ok($cart);
++    }
++
++    public function applyCoupon(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $uid = Auth::userId();
++        if ($uid === null) {
++            return ApiResponse::error('UNAUTHENTICATED', 'Authentication required', 401);
++        }
++        $code = strtoupper(trim((string)($request->body['code'] ?? '')));
++        if ($code === '') {
++            return ApiResponse::error('VALIDATION_ERROR', 'code is required', 422);
++        }
++        $pdo = Database::pdo($app->config());
++        $st = $pdo->prepare('SELECT id FROM coupons WHERE code = ? AND is_active = 1 AND deleted_at IS NULL AND (starts_at IS NULL OR starts_at <= NOW()) AND (ends_at IS NULL OR ends_at >= NOW()) LIMIT 1');
++        $st->execute([$code]);
++        $couponId = $st->fetchColumn();
++        if ($couponId === false) {
++            return ApiResponse::error('INVALID_COUPON', 'Coupon not found', 404);
++        }
++        $cart = $this->service($app)->applyCoupon($uid, (int)$couponId);
++        return ApiResponse::ok($cart);
++    }
++}

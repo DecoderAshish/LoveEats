@@ -1,0 +1,38 @@
+diff --git a/app/Controllers/AdminApi/SettingsController.php b/app/Controllers/AdminApi/SettingsController.php
+new file mode 100644
+index 0000000..7e4e7ec
+--- /dev/null
++++ b/app/Controllers/AdminApi/SettingsController.php
+@@ -0,0 +1,32 @@
++<?php
++declare(strict_types=1);
++
++namespace App\Controllers\AdminApi;
++
++use App\Bootstrap\App;
++use App\Http\Request;
++use App\Support\ApiResponse;
++use App\Support\Database;
++
++final class SettingsController extends BaseAdminApiController
++{
++    public function get(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $pdo = Database::pdo($app->config());
++        $st = $pdo->query('SELECT `key`, value_json, updated_at FROM settings ORDER BY `key` ASC');
++        $rows = $st ? $st->fetchAll() : [];
++        return ApiResponse::ok(['items' => is_array($rows) ? $rows : []]);
++    }
++
++    public function update(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $key = trim((string)($request->body['key'] ?? ''));
++        $value = $request->body['value'] ?? null;
++        if ($key === '') {
++            return ApiResponse::error('VALIDATION_ERROR', 'key is required', 422);
++        }
++        $pdo = Database::pdo($app->config());
++        $pdo->prepare('INSERT INTO settings (`key`, value_json, updated_at) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE value_json=VALUES(value_json), updated_at=NOW()')->execute([$key, json_encode($value, JSON_UNESCAPED_SLASHES)]);
++        return ApiResponse::ok(['status' => 'ok']);
++    }
++}

@@ -1,0 +1,39 @@
+diff --git a/app/Controllers/AdminApi/CitiesController.php b/app/Controllers/AdminApi/CitiesController.php
+new file mode 100644
+index 0000000..e7405ec
+--- /dev/null
++++ b/app/Controllers/AdminApi/CitiesController.php
+@@ -0,0 +1,33 @@
++<?php
++declare(strict_types=1);
++
++namespace App\Controllers\AdminApi;
++
++use App\Bootstrap\App;
++use App\Http\Request;
++use App\Support\ApiResponse;
++use App\Support\Database;
++use App\Support\Str;
++
++final class CitiesController extends BaseAdminApiController
++{
++    public function list(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $pdo = Database::pdo($app->config());
++        $st = $pdo->query('SELECT id, name, slug, is_active FROM cities ORDER BY id ASC');
++        $rows = $st ? $st->fetchAll() : [];
++        return ApiResponse::ok(['items' => is_array($rows) ? $rows : []]);
++    }
++
++    public function create(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $name = trim((string)($request->body['name'] ?? ''));
++        if ($name === '') {
++            return ApiResponse::error('VALIDATION_ERROR', 'name is required', 422);
++        }
++        $slug = Str::slug($name);
++        $pdo = Database::pdo($app->config());
++        $pdo->prepare('INSERT INTO cities (name, slug, is_active, created_at, updated_at) VALUES (?, ?, 1, NOW(), NOW())')->execute([$name, $slug]);
++        return ApiResponse::ok(['id' => (int)$pdo->lastInsertId()]);
++    }
++}

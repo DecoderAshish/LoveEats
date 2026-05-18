@@ -1,0 +1,20 @@
+diff --git a/app/Controllers/Api/BaseApiController.php b/app/Controllers/Api/BaseApiController.php
+new file mode 100644
+index 0000000..3635260
+--- /dev/null
++++ b/app/Controllers/Api/BaseApiController.php
+@@ -0,0 +1,14 @@
++<?php
++declare(strict_types=1);
++
++namespace App\Controllers\Api;
++
++use App\Support\ApiResponse;
++
++abstract class BaseApiController
++{
++    protected function notImplemented(): \App\Http\Response
++    {
++        return ApiResponse::error('NOT_IMPLEMENTED', 'Not implemented yet', 501);
++    }
++}

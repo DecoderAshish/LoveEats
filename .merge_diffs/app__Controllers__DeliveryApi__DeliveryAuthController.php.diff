@@ -1,0 +1,80 @@
+diff --git a/app/Controllers/DeliveryApi/DeliveryAuthController.php b/app/Controllers/DeliveryApi/DeliveryAuthController.php
+new file mode 100644
+index 0000000..0b79c6a
+--- /dev/null
++++ b/app/Controllers/DeliveryApi/DeliveryAuthController.php
+@@ -0,0 +1,74 @@
++<?php
++declare(strict_types=1);
++
++namespace App\Controllers\DeliveryApi;
++
++use App\Bootstrap\App;
++use App\Http\Request;
++use App\Repositories\OtpRepository;
++use App\Services\Auth\JwtService;
++use App\Support\ApiResponse;
++use App\Support\Database;
++
++final class DeliveryAuthController
++{
++    public function otpRequest(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $phone = preg_replace('/\s+/', '', (string)($request->body['phone'] ?? ''));
++        if ($phone === null || $phone === '') {
++            return ApiResponse::error('VALIDATION_ERROR', 'phone is required', 422);
++        }
++        $pdo = Database::pdo($app->config());
++        $repo = new OtpRepository($pdo);
++        $otp = (string)random_int(100000, 999999);
++        $hash = password_hash($otp, PASSWORD_DEFAULT);
++        $id = $repo->create($phone, $hash, 300);
++        $app->logger()->info('Delivery OTP requested', ['phone' => $phone, 'otp_debug' => $otp]);
++        $payload = ['otp_request_id' => $id, 'expires_in' => 300];
++        if ((string)$app->config()->get('app.env') === 'local') {
++            $payload['otp_debug'] = $otp;
++        }
++        return ApiResponse::ok($payload);
++    }
++
++    public function otpVerify(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $phone = preg_replace('/\s+/', '', (string)($request->body['phone'] ?? ''));
++        $otp = trim((string)($request->body['otp'] ?? ''));
++        if ($phone === null || $phone === '' || $otp === '') {
++            return ApiResponse::error('VALIDATION_ERROR', 'phone and otp are required', 422);
++        }
++        $pdo = Database::pdo($app->config());
++        $repo = new OtpRepository($pdo);
++        $row = $repo->latestValid($phone);
++        if ($row === null) {
++            return ApiResponse::error('OTP_VERIFY_FAILED', 'OTP not found', 400);
++        }
++        if (strtotime((string)$row['expires_at']) <= time()) {
++            return ApiResponse::error('OTP_VERIFY_FAILED', 'OTP expired', 400);
++        }
++        if (!password_verify($otp, (string)$row['code_hash'])) {
++            $repo->incrementAttempts((int)$row['id']);
++            return ApiResponse::error('OTP_VERIFY_FAILED', 'Invalid OTP', 400);
++        }
++
++        $st = $pdo->prepare('SELECT id, name, phone, is_available FROM delivery_partners WHERE phone = ? LIMIT 1');
++        $st->execute([$phone]);
++        $partner = $st->fetch();
++        if (!is_array($partner)) {
++            $pdo->prepare('INSERT INTO delivery_partners (name, phone, status, is_available, created_at, updated_at) VALUES (?, ?, ?, 0, NOW(), NOW())')->execute(['Delivery Partner', $phone, 'active']);
++            $partnerId = (int)$pdo->lastInsertId();
++            $partner = ['id' => $partnerId, 'name' => 'Delivery Partner', 'phone' => $phone, 'is_available' => 0];
++        }
++
++        $jwt = new JwtService((string)$app->config()->get('app.jwt_secret'));
++        $token = $jwt->encode(['dpid' => (int)$partner['id']], 60 * 60 * 24 * 30);
++
++        return ApiResponse::ok([
++            'partner' => $partner,
++            'access_token' => $token,
++            'token_type' => 'Bearer',
++        ]);
++    }
++}
++

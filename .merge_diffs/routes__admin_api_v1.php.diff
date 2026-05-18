@@ -1,0 +1,68 @@
+diff --git a/routes/admin_api_v1.php b/routes/admin_api_v1.php
+new file mode 100644
+index 0000000..d2f684d
+--- /dev/null
++++ b/routes/admin_api_v1.php
+@@ -0,0 +1,62 @@
++<?php
++declare(strict_types=1);
++
++use App\Controllers\AdminApi\AdminAuthController;
++use App\Controllers\AdminApi\DashboardController;
++use App\Controllers\AdminApi\RestaurantsController;
++use App\Controllers\AdminApi\UsersController;
++use App\Controllers\AdminApi\OrdersController;
++use App\Controllers\AdminApi\CouponsController;
++use App\Controllers\AdminApi\BannersController;
++use App\Controllers\AdminApi\CitiesController;
++use App\Controllers\AdminApi\SettingsController;
++use App\Middlewares\RateLimitMiddleware;
++use App\Middlewares\JwtAuthMiddleware;
++use App\Middlewares\PermissionMiddleware;
++use App\Middlewares\SecurityHeadersMiddleware;
++
++$router->group('/admin-api/v1', [SecurityHeadersMiddleware::class, RateLimitMiddleware::class], static function ($router): void {
++    $auth = new AdminAuthController();
++    $router->post('/auth/login', [$auth, 'login']);
++    $router->post('/auth/logout', [$auth, 'logout'], [JwtAuthMiddleware::class]);
++
++    $router->group('', [JwtAuthMiddleware::class, PermissionMiddleware::class], static function ($router): void {
++        $dashboard = new DashboardController();
++        $router->get('/dashboard', [$dashboard, 'summary']);
++
++        $restaurants = new RestaurantsController();
++        $router->get('/restaurants', [$restaurants, 'list']);
++        $router->post('/restaurants', [$restaurants, 'create']);
++        $router->patch('/restaurants/{id}', [$restaurants, 'update']);
++        $router->delete('/restaurants/{id}', [$restaurants, 'delete']);
++
++        $users = new UsersController();
++        $router->get('/users', [$users, 'list']);
++        $router->patch('/users/{id}', [$users, 'update']);
++
++        $orders = new OrdersController();
++        $router->get('/orders', [$orders, 'list']);
++        $router->get('/orders/{id}', [$orders, 'details']);
++        $router->patch('/orders/{id}', [$orders, 'updateStatus']);
++
++        $coupons = new CouponsController();
++        $router->get('/coupons', [$coupons, 'list']);
++        $router->post('/coupons', [$coupons, 'create']);
++        $router->patch('/coupons/{id}', [$coupons, 'update']);
++        $router->delete('/coupons/{id}', [$coupons, 'delete']);
++
++        $banners = new BannersController();
++        $router->get('/banners', [$banners, 'list']);
++        $router->post('/banners', [$banners, 'create']);
++        $router->patch('/banners/{id}', [$banners, 'update']);
++        $router->delete('/banners/{id}', [$banners, 'delete']);
++
++        $cities = new CitiesController();
++        $router->get('/cities', [$cities, 'list']);
++        $router->post('/cities', [$cities, 'create']);
++
++        $settings = new SettingsController();
++        $router->get('/settings', [$settings, 'get']);
++        $router->patch('/settings', [$settings, 'update']);
++    });
++});

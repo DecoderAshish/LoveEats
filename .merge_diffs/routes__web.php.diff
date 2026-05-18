@@ -1,0 +1,42 @@
+diff --git a/routes/web.php b/routes/web.php
+new file mode 100644
+index 0000000..047dfac
+--- /dev/null
++++ b/routes/web.php
+@@ -0,0 +1,36 @@
++<?php
++declare(strict_types=1);
++
++use App\Controllers\Web\PagesController;
++use App\Middlewares\SessionMiddleware;
++use App\Middlewares\CsrfMiddleware;
++use App\Middlewares\SecurityHeadersMiddleware;
++
++$router->group('', [SecurityHeadersMiddleware::class, SessionMiddleware::class, CsrfMiddleware::class], static function ($router): void {
++    $pages = new PagesController();
++
++    $router->get('/', [$pages, 'landing']);
++    $router->get('/home', [$pages, 'home']);
++    $router->get('/restaurants', [$pages, 'restaurants']);
++    $router->get('/r/{restaurant_slug}', [$pages, 'restaurantDetails']);
++    $router->get('/reels', [$pages, 'reels']);
++    $router->get('/cart', [$pages, 'cart']);
++    $router->get('/checkout', [$pages, 'checkout']);
++    $router->get('/login', [$pages, 'login']);
++    $router->get('/orders/success/{order_public_id}', [$pages, 'orderSuccess']);
++    $router->get('/orders/track/{order_public_id}', [$pages, 'tracking']);
++    $router->get('/wallet', [$pages, 'wallet']);
++    $router->get('/referrals', [$pages, 'referrals']);
++    $router->get('/coupons', [$pages, 'coupons']);
++    $router->get('/profile', [$pages, 'profile']);
++    $router->get('/addresses', [$pages, 'addresses']);
++    $router->get('/notifications', [$pages, 'notifications']);
++    $router->get('/orders', [$pages, 'orders']);
++    $router->get('/favorites', [$pages, 'favorites']);
++    $router->get('/support', [$pages, 'support']);
++    $router->get('/pickup', [$pages, 'pickup']);
++    $router->get('/about', [$pages, 'about']);
++    $router->get('/contact', [$pages, 'contact']);
++    $router->get('/privacy', [$pages, 'privacy']);
++    $router->get('/terms', [$pages, 'terms']);
++});

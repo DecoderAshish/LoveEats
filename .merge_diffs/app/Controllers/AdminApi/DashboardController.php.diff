@@ -1,0 +1,35 @@
+diff --git a/app/Controllers/AdminApi/DashboardController.php b/app/Controllers/AdminApi/DashboardController.php
+new file mode 100644
+index 0000000..c150734
+--- /dev/null
++++ b/app/Controllers/AdminApi/DashboardController.php
+@@ -0,0 +1,29 @@
++<?php
++declare(strict_types=1);
++
++namespace App\Controllers\AdminApi;
++
++use App\Bootstrap\App;
++use App\Http\Request;
++use App\Support\ApiResponse;
++use App\Support\Database;
++
++final class DashboardController extends BaseAdminApiController
++{
++    public function summary(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $pdo = Database::pdo($app->config());
++        $users = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE deleted_at IS NULL")->fetchColumn();
++        $restaurants = (int)$pdo->query("SELECT COUNT(*) FROM restaurants WHERE deleted_at IS NULL")->fetchColumn();
++        $orders = (int)$pdo->query("SELECT COUNT(*) FROM orders")->fetchColumn();
++        $sales = (float)$pdo->query("SELECT COALESCE(SUM(total),0) FROM orders")->fetchColumn();
++        return ApiResponse::ok([
++            'kpis' => [
++                'users' => $users,
++                'restaurants' => $restaurants,
++                'orders' => $orders,
++                'sales_total' => round($sales, 2),
++            ],
++        ]);
++    }
++}

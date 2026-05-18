@@ -1,0 +1,39 @@
+diff --git a/app/Support/Auth.php b/app/Support/Auth.php
+new file mode 100644
+index 0000000..3e1938f
+--- /dev/null
++++ b/app/Support/Auth.php
+@@ -0,0 +1,33 @@
++<?php
++declare(strict_types=1);
++
++namespace App\Support;
++
++final class Auth
++{
++    private static ?int $userId = null;
++    private static ?string $role = null;
++    private static ?int $sessionId = null;
++
++    public static function set(?int $userId, ?string $role, ?int $sessionId): void
++    {
++        self::$userId = $userId;
++        self::$role = $role;
++        self::$sessionId = $sessionId;
++    }
++
++    public static function userId(): ?int
++    {
++        return self::$userId;
++    }
++
++    public static function role(): ?string
++    {
++        return self::$role;
++    }
++
++    public static function sessionId(): ?int
++    {
++        return self::$sessionId;
++    }
++}

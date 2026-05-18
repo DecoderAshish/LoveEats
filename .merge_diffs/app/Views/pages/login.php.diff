@@ -1,0 +1,118 @@
+diff --git a/app/Views/pages/login.php b/app/Views/pages/login.php
+new file mode 100644
+index 0000000..dc03a5d
+--- /dev/null
++++ b/app/Views/pages/login.php
+@@ -0,0 +1,112 @@
++<?php
++declare(strict_types=1);
++?>
++<section class="le-hero" style="background:linear-gradient(135deg, rgba(255,227,106,.18), rgba(255,178,0,.08));">
++  <div class="le-hero__grid">
++    <div>
++      <h1 class="le-hero__title" style="color:var(--text)">Login</h1>
++      <p class="le-hero__subtitle" style="color:var(--muted)">Phone OTP or Email/password. Token is stored locally for API calls.</p>
++      <div class="le-chiprow">
++        <span class="le-chip">JWT + Sessions</span>
++        <span class="le-chip">OTP timer-ready</span>
++        <span class="le-chip">Guest-ready</span>
++      </div>
++    </div>
++    <div class="le-card">
++      <div class="le-card__body">
++        <div class="le-badge">Demo account</div>
++        <div style="margin-top:10px;font-weight:900">demo@loveeats.local</div>
++        <div class="le-muted" style="margin-top:4px">Password: Demo@12345</div>
++        <div style="margin-top:12px"><button class="le-btn" type="button" data-action="demo-login">One-tap login</button></div>
++      </div>
++    </div>
++  </div>
++</section>
++
++<section class="le-section">
++  <div class="le-grid2">
++    <div class="le-card">
++      <div class="le-card__body">
++        <div class="le-badge">Phone OTP</div>
++        <div style="margin-top:12px;display:grid;gap:10px">
++          <input class="le-input" id="le_phone" placeholder="Phone number" style="border:1px solid var(--line);border-radius:14px;padding:12px;background:color-mix(in srgb,var(--surface) 92%, transparent)" />
++          <div style="display:flex;gap:10px">
++            <button class="le-btn" type="button" data-action="otp-request">Send OTP</button>
++            <input class="le-input" id="le_otp" placeholder="OTP" style="border:1px solid var(--line);border-radius:14px;padding:12px;background:color-mix(in srgb,var(--surface) 92%, transparent)" />
++            <button class="le-btn" type="button" data-action="otp-verify">Verify</button>
++          </div>
++          <div class="le-muted" id="le_otp_hint" style="font-size:13px"></div>
++        </div>
++      </div>
++    </div>
++    <div class="le-card">
++      <div class="le-card__body">
++        <div class="le-badge">Email login</div>
++        <div style="margin-top:12px;display:grid;gap:10px">
++          <input class="le-input" id="le_email" placeholder="Email" style="border:1px solid var(--line);border-radius:14px;padding:12px;background:color-mix(in srgb,var(--surface) 92%, transparent)" />
++          <input class="le-input" id="le_password" placeholder="Password" type="password" style="border:1px solid var(--line);border-radius:14px;padding:12px;background:color-mix(in srgb,var(--surface) 92%, transparent)" />
++          <button class="le-btn" type="button" data-action="email-login" style="width:100%">Login</button>
++          <div class="le-muted" id="le_login_hint" style="font-size:13px"></div>
++        </div>
++      </div>
++    </div>
++  </div>
++</section>
++
++<script>
++  (() => {
++    const setToken = (token) => {
++      if (!token) return
++      localStorage.setItem('le_token', token)
++      document.getElementById('le_login_hint').textContent = 'Logged in. You can now use Cart/Checkout APIs.'
++    }
++
++    document.addEventListener('click', async (e) => {
++      const el = e.target.closest('[data-action]')
++      if (!el) return
++      const action = el.getAttribute('data-action')
++
++      if (action === 'demo-login') {
++        document.getElementById('le_email').value = 'demo@loveeats.local'
++        document.getElementById('le_password').value = 'Demo@12345'
++      }
++
++      if (action === 'email-login' || action === 'demo-login') {
++        const email = document.getElementById('le_email').value.trim()
++        const password = document.getElementById('le_password').value
++        const res = await window.leApi('/api/v1/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })
++        if (!res.ok) {
++          document.getElementById('le_login_hint').textContent = res.data?.error?.message || 'Login failed'
++          return
++        }
++        setToken(res.data.data.access_token)
++        return
++      }
++
++      if (action === 'otp-request') {
++        const phone = document.getElementById('le_phone').value.trim()
++        const res = await window.leApi('/api/v1/auth/otp/request', { method: 'POST', body: JSON.stringify({ phone }) })
++        const hint = document.getElementById('le_otp_hint')
++        if (!res.ok) {
++          hint.textContent = res.data?.error?.message || 'OTP request failed'
++          return
++        }
++        hint.textContent = res.data?.data?.otp_debug ? ('OTP (local): ' + res.data.data.otp_debug) : 'OTP sent.'
++        return
++      }
++
++      if (action === 'otp-verify') {
++        const phone = document.getElementById('le_phone').value.trim()
++        const otp = document.getElementById('le_otp').value.trim()
++        const res = await window.leApi('/api/v1/auth/otp/verify', { method: 'POST', body: JSON.stringify({ phone, otp }) })
++        const hint = document.getElementById('le_otp_hint')
++        if (!res.ok) {
++          hint.textContent = res.data?.error?.message || 'OTP verify failed'
++          return
++        }
++        setToken(res.data.data.access_token)
++        hint.textContent = 'Logged in via OTP.'
++      }
++    })
++  })()
++</script>

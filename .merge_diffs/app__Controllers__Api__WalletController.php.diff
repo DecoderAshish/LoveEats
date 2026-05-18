@@ -1,0 +1,54 @@
+diff --git a/app/Controllers/Api/WalletController.php b/app/Controllers/Api/WalletController.php
+new file mode 100644
+index 0000000..1ae4874
+--- /dev/null
++++ b/app/Controllers/Api/WalletController.php
+@@ -0,0 +1,48 @@
++<?php
++declare(strict_types=1);
++
++namespace App\Controllers\Api;
++
++use App\Bootstrap\App;
++use App\Http\Request;
++use App\Support\ApiResponse;
++use App\Support\Auth;
++use App\Support\Database;
++
++final class WalletController extends BaseApiController
++{
++    public function summary(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $uid = Auth::userId();
++        if ($uid === null) {
++            return ApiResponse::error('UNAUTHENTICATED', 'Authentication required', 401);
++        }
++        $pdo = Database::pdo($app->config());
++        $st = $pdo->prepare('SELECT id, balance FROM wallets WHERE user_id = ? LIMIT 1');
++        $st->execute([$uid]);
++        $wallet = $st->fetch();
++        if (!is_array($wallet)) {
++            return ApiResponse::ok(['wallet' => ['balance' => 0]]);
++        }
++        return ApiResponse::ok(['wallet' => $wallet]);
++    }
++
++    public function transactions(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $uid = Auth::userId();
++        if ($uid === null) {
++            return ApiResponse::error('UNAUTHENTICATED', 'Authentication required', 401);
++        }
++        $pdo = Database::pdo($app->config());
++        $w = $pdo->prepare('SELECT id FROM wallets WHERE user_id = ? LIMIT 1');
++        $w->execute([$uid]);
++        $walletId = $w->fetchColumn();
++        if ($walletId === false) {
++            return ApiResponse::ok(['items' => []]);
++        }
++        $st = $pdo->prepare('SELECT id, type, amount, reference_type, reference_id, description, created_at FROM wallet_transactions WHERE wallet_id = ? ORDER BY id DESC LIMIT 50');
++        $st->execute([(int)$walletId]);
++        $rows = $st->fetchAll();
++        return ApiResponse::ok(['items' => is_array($rows) ? $rows : []]);
++    }
++}

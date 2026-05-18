@@ -1,0 +1,167 @@
+diff --git a/app/Controllers/Api/UserController.php b/app/Controllers/Api/UserController.php
+new file mode 100644
+index 0000000..444994d
+--- /dev/null
++++ b/app/Controllers/Api/UserController.php
+@@ -0,0 +1,161 @@
++<?php
++declare(strict_types=1);
++
++namespace App\Controllers\Api;
++
++use App\Bootstrap\App;
++use App\Http\Request;
++use App\Support\ApiResponse;
++use App\Support\Auth;
++use App\Support\Database;
++use App\Support\Str;
++
++final class UserController extends BaseApiController
++{
++    public function getProfile(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $uid = Auth::userId();
++        if ($uid === null) {
++            return ApiResponse::error('UNAUTHENTICATED', 'Authentication required', 401);
++        }
++        $pdo = Database::pdo($app->config());
++        $st = $pdo->prepare('SELECT id, name, email, phone, avatar_path, referral_code, email_verified_at, phone_verified_at FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1');
++        $st->execute([$uid]);
++        $user = $st->fetch();
++        return ApiResponse::ok(['user' => is_array($user) ? $user : null]);
++    }
++
++    public function updateProfile(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $uid = Auth::userId();
++        if ($uid === null) {
++            return ApiResponse::error('UNAUTHENTICATED', 'Authentication required', 401);
++        }
++        $name = trim((string)($request->body['name'] ?? ''));
++        if ($name === '') {
++            return ApiResponse::error('VALIDATION_ERROR', 'name is required', 422);
++        }
++        $pdo = Database::pdo($app->config());
++        $pdo->prepare('UPDATE users SET name = ?, updated_at = NOW() WHERE id = ?')->execute([$name, $uid]);
++        return $this->getProfile($request, $app, $params);
++    }
++
++    public function uploadAvatar(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $uid = Auth::userId();
++        if ($uid === null) {
++            return ApiResponse::error('UNAUTHENTICATED', 'Authentication required', 401);
++        }
++        $file = $request->files['avatar'] ?? null;
++        if (!is_array($file) || !isset($file['tmp_name'], $file['name'], $file['size'])) {
++            return ApiResponse::error('VALIDATION_ERROR', 'avatar file is required', 422);
++        }
++        if ((int)$file['size'] <= 0 || (int)$file['size'] > (int)$app->config()->get('app.upload_max_bytes')) {
++            return ApiResponse::error('VALIDATION_ERROR', 'Invalid file size', 422);
++        }
++        $tmp = (string)$file['tmp_name'];
++        $mime = mime_content_type($tmp) ?: '';
++        $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
++        if (!isset($allowed[$mime])) {
++            return ApiResponse::error('VALIDATION_ERROR', 'Invalid image type', 422);
++        }
++        $ext = $allowed[$mime];
++        $name = 'avatar_' . $uid . '_' . Str::random(12) . '.' . $ext;
++        $dir = $app->rootPath() . '/public/uploads/avatars';
++        if (!is_dir($dir)) {
++            @mkdir($dir, 0775, true);
++        }
++        $dest = $dir . '/' . $name;
++        if (!move_uploaded_file($tmp, $dest)) {
++            return ApiResponse::error('UPLOAD_FAILED', 'Failed to store file', 500);
++        }
++        $path = '/uploads/avatars/' . $name;
++        $pdo = Database::pdo($app->config());
++        $pdo->prepare('UPDATE users SET avatar_path = ?, updated_at = NOW() WHERE id = ?')->execute([$path, $uid]);
++        return ApiResponse::ok(['avatar_path' => $path]);
++    }
++
++    public function addresses(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $uid = Auth::userId();
++        if ($uid === null) {
++            return ApiResponse::error('UNAUTHENTICATED', 'Authentication required', 401);
++        }
++        $pdo = Database::pdo($app->config());
++        $st = $pdo->prepare('SELECT * FROM addresses WHERE user_id = ? AND deleted_at IS NULL ORDER BY is_default DESC, id DESC');
++        $st->execute([$uid]);
++        $rows = $st->fetchAll();
++        return ApiResponse::ok(['items' => is_array($rows) ? $rows : []]);
++    }
++
++    public function createAddress(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $uid = Auth::userId();
++        if ($uid === null) {
++            return ApiResponse::error('UNAUTHENTICATED', 'Authentication required', 401);
++        }
++        $label = trim((string)($request->body['label'] ?? 'Home'));
++        $line1 = trim((string)($request->body['address_line1'] ?? ''));
++        if ($line1 === '') {
++            return ApiResponse::error('VALIDATION_ERROR', 'address_line1 is required', 422);
++        }
++        $line2 = trim((string)($request->body['address_line2'] ?? ''));
++        $cityId = isset($request->body['city_id']) ? (int)$request->body['city_id'] : null;
++        $postal = trim((string)($request->body['postal_code'] ?? ''));
++        $instructions = trim((string)($request->body['instructions'] ?? ''));
++        $isDefault = !empty($request->body['is_default']) ? 1 : 0;
++
++        $pdo = Database::pdo($app->config());
++        if ($isDefault === 1) {
++            $pdo->prepare('UPDATE addresses SET is_default = 0 WHERE user_id = ?')->execute([$uid]);
++        }
++        $st = $pdo->prepare('INSERT INTO addresses (user_id, label, address_line1, address_line2, city_id, postal_code, instructions, is_default, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())');
++        $st->execute([$uid, $label, $line1, $line2 !== '' ? $line2 : null, $cityId, $postal !== '' ? $postal : null, $instructions !== '' ? $instructions : null, $isDefault]);
++        return $this->addresses($request, $app, $params);
++    }
++
++    public function updateAddress(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $uid = Auth::userId();
++        if ($uid === null) {
++            return ApiResponse::error('UNAUTHENTICATED', 'Authentication required', 401);
++        }
++        $id = isset($params['id']) ? (int)$params['id'] : 0;
++        if ($id <= 0) {
++            return ApiResponse::error('VALIDATION_ERROR', 'Invalid id', 422);
++        }
++        $label = trim((string)($request->body['label'] ?? 'Home'));
++        $line1 = trim((string)($request->body['address_line1'] ?? ''));
++        if ($line1 === '') {
++            return ApiResponse::error('VALIDATION_ERROR', 'address_line1 is required', 422);
++        }
++        $line2 = trim((string)($request->body['address_line2'] ?? ''));
++        $cityId = isset($request->body['city_id']) ? (int)$request->body['city_id'] : null;
++        $postal = trim((string)($request->body['postal_code'] ?? ''));
++        $instructions = trim((string)($request->body['instructions'] ?? ''));
++        $isDefault = !empty($request->body['is_default']) ? 1 : 0;
++
++        $pdo = Database::pdo($app->config());
++        if ($isDefault === 1) {
++            $pdo->prepare('UPDATE addresses SET is_default = 0 WHERE user_id = ?')->execute([$uid]);
++        }
++        $st = $pdo->prepare('UPDATE addresses SET label=?, address_line1=?, address_line2=?, city_id=?, postal_code=?, instructions=?, is_default=?, updated_at=NOW() WHERE id=? AND user_id=? AND deleted_at IS NULL');
++        $st->execute([$label, $line1, $line2 !== '' ? $line2 : null, $cityId, $postal !== '' ? $postal : null, $instructions !== '' ? $instructions : null, $isDefault, $id, $uid]);
++        return $this->addresses($request, $app, $params);
++    }
++
++    public function deleteAddress(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $uid = Auth::userId();
++        if ($uid === null) {
++            return ApiResponse::error('UNAUTHENTICATED', 'Authentication required', 401);
++        }
++        $id = isset($params['id']) ? (int)$params['id'] : 0;
++        if ($id <= 0) {
++            return ApiResponse::error('VALIDATION_ERROR', 'Invalid id', 422);
++        }
++        $pdo = Database::pdo($app->config());
++        $pdo->prepare('UPDATE addresses SET deleted_at = NOW() WHERE id = ? AND user_id = ?')->execute([$id, $uid]);
++        return $this->addresses($request, $app, $params);
++    }
++}

@@ -1,0 +1,87 @@
+diff --git a/app/Controllers/DeliveryApi/DeliveryPartnerController.php b/app/Controllers/DeliveryApi/DeliveryPartnerController.php
+new file mode 100644
+index 0000000..332daec
+--- /dev/null
++++ b/app/Controllers/DeliveryApi/DeliveryPartnerController.php
+@@ -0,0 +1,81 @@
++<?php
++declare(strict_types=1);
++
++namespace App\Controllers\DeliveryApi;
++
++use App\Bootstrap\App;
++use App\Http\Request;
++use App\Support\ApiResponse;
++use App\Support\Database;
++use App\Support\DeliveryAuth;
++
++final class DeliveryPartnerController
++{
++    public function setAvailability(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $pid = DeliveryAuth::partnerId();
++        if ($pid === null) {
++            return ApiResponse::error('UNAUTHENTICATED', 'Authentication required', 401);
++        }
++        $available = !empty($request->body['is_available']) ? 1 : 0;
++        $pdo = Database::pdo($app->config());
++        $pdo->prepare('UPDATE delivery_partners SET is_available = ?, last_seen_at = NOW(), updated_at = NOW() WHERE id = ?')->execute([$available, $pid]);
++        return ApiResponse::ok(['status' => 'ok', 'is_available' => (bool)$available]);
++    }
++
++    public function updateLocation(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $pid = DeliveryAuth::partnerId();
++        if ($pid === null) {
++            return ApiResponse::error('UNAUTHENTICATED', 'Authentication required', 401);
++        }
++        $lat = isset($request->body['lat']) ? (float)$request->body['lat'] : null;
++        $lng = isset($request->body['lng']) ? (float)$request->body['lng'] : null;
++        if ($lat === null || $lng === null) {
++            return ApiResponse::error('VALIDATION_ERROR', 'lat and lng are required', 422);
++        }
++        $pdo = Database::pdo($app->config());
++        $pdo->prepare('UPDATE delivery_partners SET last_lat = ?, last_lng = ?, last_seen_at = NOW(), updated_at = NOW() WHERE id = ?')->execute([$lat, $lng, $pid]);
++        return ApiResponse::ok(['status' => 'ok']);
++    }
++
++    public function assignedOrders(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $pid = DeliveryAuth::partnerId();
++        if ($pid === null) {
++            return ApiResponse::error('UNAUTHENTICATED', 'Authentication required', 401);
++        }
++        $pdo = Database::pdo($app->config());
++        $st = $pdo->prepare("SELECT o.id, o.order_public_id, o.status, o.total, o.created_at, dt.status AS tracking_status, dt.eta_minutes, dt.last_lat, dt.last_lng FROM delivery_tracking dt INNER JOIN orders o ON o.id = dt.order_id WHERE dt.delivery_partner_id = ? ORDER BY o.id DESC LIMIT 50");
++        $st->execute([$pid]);
++        $rows = $st->fetchAll();
++        return ApiResponse::ok(['items' => is_array($rows) ? $rows : []]);
++    }
++
++    public function updateOrderStatus(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $pid = DeliveryAuth::partnerId();
++        if ($pid === null) {
++            return ApiResponse::error('UNAUTHENTICATED', 'Authentication required', 401);
++        }
++        $orderId = isset($params['id']) ? (int)$params['id'] : 0;
++        $status = trim((string)($request->body['status'] ?? ''));
++        $allowed = ['picked_up', 'on_the_way', 'delivered'];
++        if ($orderId <= 0 || !in_array($status, $allowed, true)) {
++            return ApiResponse::error('VALIDATION_ERROR', 'Invalid order id or status', 422);
++        }
++        $pdo = Database::pdo($app->config());
++        $pdo->beginTransaction();
++        try {
++            $pdo->prepare('UPDATE delivery_tracking SET status = ?, updated_at = NOW() WHERE order_id = ? AND delivery_partner_id = ?')->execute([$status, $orderId, $pid]);
++            $orderStatus = $status === 'picked_up' ? 'picked_up' : ($status === 'on_the_way' ? 'on_the_way' : 'delivered');
++            $pdo->prepare('UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?')->execute([$orderStatus, $orderId]);
++            $pdo->commit();
++            return ApiResponse::ok(['status' => 'ok']);
++        } catch (\Throwable $e) {
++            $pdo->rollBack();
++            return ApiResponse::error('UPDATE_FAILED', $e->getMessage(), 400);
++        }
++    }
++}
++

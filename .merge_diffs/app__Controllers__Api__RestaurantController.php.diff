@@ -1,0 +1,119 @@
+diff --git a/app/Controllers/Api/RestaurantController.php b/app/Controllers/Api/RestaurantController.php
+new file mode 100644
+index 0000000..f6aee72
+--- /dev/null
++++ b/app/Controllers/Api/RestaurantController.php
+@@ -0,0 +1,113 @@
++<?php
++declare(strict_types=1);
++
++namespace App\Controllers\Api;
++
++use App\Bootstrap\App;
++use App\Http\Request;
++use App\Repositories\RestaurantRepository;
++use App\Support\ApiResponse;
++use App\Support\Database;
++
++final class RestaurantController extends BaseApiController
++{
++    public function cities(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $pdo = Database::pdo($app->config());
++        $st = $pdo->query('SELECT id, name, slug FROM cities WHERE is_active = 1 ORDER BY id ASC');
++        $rows = $st ? $st->fetchAll() : [];
++        return ApiResponse::ok(['cities' => is_array($rows) ? $rows : []]);
++    }
++
++    public function list(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $pdo = Database::pdo($app->config());
++        $repo = new RestaurantRepository($pdo);
++        $result = $repo->list($request->query);
++        return ApiResponse::ok($result);
++    }
++
++    public function details(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $id = isset($params['id']) ? (int)$params['id'] : 0;
++        if ($id <= 0) {
++            return ApiResponse::error('VALIDATION_ERROR', 'Invalid restaurant id', 422);
++        }
++        $pdo = Database::pdo($app->config());
++        $repo = new RestaurantRepository($pdo);
++        $restaurant = $repo->find($id);
++        if ($restaurant === null) {
++            return ApiResponse::error('NOT_FOUND', 'Restaurant not found', 404);
++        }
++        $branches = $repo->branches($id);
++        return ApiResponse::ok(['restaurant' => $restaurant, 'branches' => $branches]);
++    }
++
++    public function detailsBySlug(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $slug = isset($params['slug']) ? (string)$params['slug'] : '';
++        if ($slug === '') {
++            return ApiResponse::error('VALIDATION_ERROR', 'Invalid slug', 422);
++        }
++        $pdo = Database::pdo($app->config());
++        $repo = new RestaurantRepository($pdo);
++        $restaurant = $repo->findBySlug($slug);
++        if ($restaurant === null) {
++            return ApiResponse::error('NOT_FOUND', 'Restaurant not found', 404);
++        }
++        $branches = $repo->branches((int)$restaurant['id']);
++        $menu = $repo->menu((int)$restaurant['id']);
++        return ApiResponse::ok(['restaurant' => $restaurant, 'branches' => $branches, 'menu' => $menu]);
++    }
++
++    public function menu(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $id = isset($params['id']) ? (int)$params['id'] : 0;
++        if ($id <= 0) {
++            return ApiResponse::error('VALIDATION_ERROR', 'Invalid restaurant id', 422);
++        }
++        $pdo = Database::pdo($app->config());
++        $repo = new RestaurantRepository($pdo);
++        $restaurant = $repo->find($id);
++        if ($restaurant === null) {
++            return ApiResponse::error('NOT_FOUND', 'Restaurant not found', 404);
++        }
++        $menu = $repo->menu($id);
++        return ApiResponse::ok(['restaurant' => $restaurant, 'menu' => $menu]);
++    }
++
++    public function search(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $q = trim((string)($request->query['q'] ?? $request->query['query'] ?? ''));
++        if ($q === '') {
++            return ApiResponse::error('VALIDATION_ERROR', 'q is required', 422);
++        }
++        $pdo = Database::pdo($app->config());
++        $repo = new RestaurantRepository($pdo);
++        $result = $repo->search($q, $request->query);
++        return ApiResponse::ok(array_merge(['query' => $q], $result));
++    }
++
++    public function smartSearch(Request $request, App $app, array $params): \App\Http\Response
++    {
++        $q = trim((string)($request->query['q'] ?? $request->query['query'] ?? ''));
++        if ($q === '') {
++            return ApiResponse::error('VALIDATION_ERROR', 'q is required', 422);
++        }
++        $pdo = Database::pdo($app->config());
++        $repo = new RestaurantRepository($pdo);
++        $result = $repo->search($q, $request->query);
++        $suggestions = [
++            $q,
++            $q . ' spicy',
++            'couple meals',
++            'midnight',
++        ];
++        return ApiResponse::ok([
++            'query' => $q,
++            'suggestions' => $suggestions,
++            'results' => $result,
++            'ai_ready' => true,
++        ]);
++    }
++}

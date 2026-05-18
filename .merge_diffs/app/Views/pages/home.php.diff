@@ -1,0 +1,72 @@
+diff --git a/app/Views/pages/home.php b/app/Views/pages/home.php
+new file mode 100644
+index 0000000..78d3f9d
+--- /dev/null
++++ b/app/Views/pages/home.php
+@@ -0,0 +1,66 @@
++<?php
++declare(strict_types=1);
++?>
++<section class="le-hero" style="background:linear-gradient(135deg, rgba(255,227,106,.35), rgba(255,178,0,.12));">
++  <div class="le-hero__grid">
++    <div>
++      <h1 class="le-hero__title" style="color:var(--text)">What are you feeling?</h1>
++      <p class="le-hero__subtitle" style="color:var(--muted)">A home feed designed to make reordering effortless.</p>
++      <div class="le-search" style="background:color-mix(in srgb,var(--surface) 88%, transparent)">
++        <input class="le-input" placeholder="Search or try: “spicy”, “low calorie”, “for two”" onkeydown="if(event.key==='Enter'){location.href='/restaurants?query='+encodeURIComponent(this.value||'')}" />
++        <a class="le-btn" href="/restaurants">Browse</a>
++      </div>
++    </div>
++    <div class="le-card">
++      <div class="le-card__body">
++        <div class="le-badge">Quick reorder</div>
++        <div style="margin-top:10px;font-weight:880">Last order</div>
++        <div class="le-muted" style="margin-top:4px">Spicy Paneer Wrap + Mango Lassi</div>
++        <div style="margin-top:12px;display:flex;gap:10px">
++          <button class="le-btn" type="button" onclick="location.href='/orders'">Reorder</button>
++          <a class="le-nav__link" href="/coupons" style="background:color-mix(in srgb,var(--surface) 88%, transparent);border:1px solid var(--line)">Coupons</a>
++        </div>
++      </div>
++    </div>
++  </div>
++</section>
++
++<section class="le-section">
++  <div class="le-section__head">
++    <h2 class="le-section__title">Nearby & fast</h2>
++    <a class="le-section__link" href="/restaurants">All restaurants</a>
++  </div>
++  <div class="le-rail">
++    <?php for ($i = 0; $i < 8; $i++): ?>
++      <a class="le-card" href="/r/sunrise-kitchen">
++        <div class="le-card__body">
++          <div class="le-badge">22 min · 1.8 km</div>
++          <div style="margin-top:10px;font-weight:880">Sunrise Kitchen</div>
++          <div class="le-muted" style="margin-top:4px">Bowls · Wraps · Desserts</div>
++        </div>
++      </a>
++    <?php endfor; ?>
++  </div>
++</section>
++
++<section class="le-section">
++  <div class="le-section__head">
++    <h2 class="le-section__title">Trending foods</h2>
++    <a class="le-section__link" href="/trending">View</a>
++  </div>
++  <div class="le-grid">
++    <?php for ($i = 0; $i < 6; $i++): ?>
++      <div class="le-card">
++        <div class="le-card__body">
++          <div class="le-badge">Hot now</div>
++          <div style="margin-top:10px;font-weight:900">Cheesy Volcano Fries</div>
++          <div class="le-muted" style="margin-top:4px">₹179 · Add-ons available</div>
++          <div style="margin-top:12px;display:flex;gap:10px">
++            <button class="le-btn" type="button">Add</button>
++            <a class="le-nav__link" href="/reels" style="background:color-mix(in srgb,var(--surface) 88%, transparent);border:1px solid var(--line)">Watch</a>
++          </div>
++        </div>
++      </div>
++    <?php endfor; ?>
++  </div>
++</section>

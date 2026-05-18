@@ -1,0 +1,10 @@
+diff --git a/public/robots.txt b/public/robots.txt
+new file mode 100644
+index 0000000..b08aee5
+--- /dev/null
++++ b/public/robots.txt
+@@ -0,0 +1,4 @@
++User-agent: *
++Allow: /
++
++Sitemap: /sitemap.xml

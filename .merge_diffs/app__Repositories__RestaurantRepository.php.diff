@@ -1,0 +1,119 @@
+diff --git a/app/Repositories/RestaurantRepository.php b/app/Repositories/RestaurantRepository.php
+new file mode 100644
+index 0000000..f753a5e
+--- /dev/null
++++ b/app/Repositories/RestaurantRepository.php
+@@ -0,0 +1,113 @@
++<?php
++declare(strict_types=1);
++
++namespace App\Repositories;
++
++use App\Support\Pagination;
++
++final class RestaurantRepository
++{
++    public function __construct(private readonly \PDO $pdo) {}
++
++    /** @return array{items:list<array<string,mixed>>, pagination:array<string,int>} */
++    public function list(array $query): array
++    {
++        $p = Pagination::fromQuery($query);
++        $params = [];
++        $where = ['r.is_active = 1', 'r.deleted_at IS NULL'];
++
++        if (!empty($query['city_id'])) {
++            $where[] = 'r.city_id = ?';
++            $params[] = (int)$query['city_id'];
++        }
++        if (!empty($query['query'])) {
++            $where[] = 'r.name LIKE ?';
++            $params[] = '%' . (string)$query['query'] . '%';
++        }
++
++        $sql = 'SELECT r.id, r.name, r.slug, r.type, r.rating, r.rating_count, r.price_level, r.cuisines FROM restaurants r'
++            . ' WHERE ' . implode(' AND ', $where)
++            . ' ORDER BY r.rating DESC, r.id DESC LIMIT ' . (int)$p['limit'] . ' OFFSET ' . (int)$p['offset'];
++
++        $st = $this->pdo->prepare($sql);
++        $st->execute($params);
++        $items = $st->fetchAll();
++        return ['items' => is_array($items) ? $items : [], 'pagination' => $p];
++    }
++
++    public function find(int $id): ?array
++    {
++        $st = $this->pdo->prepare('SELECT * FROM restaurants WHERE id = ? AND deleted_at IS NULL LIMIT 1');
++        $st->execute([$id]);
++        $row = $st->fetch();
++        return is_array($row) ? $row : null;
++    }
++
++    public function findBySlug(string $slug): ?array
++    {
++        $st = $this->pdo->prepare('SELECT * FROM restaurants WHERE slug = ? AND deleted_at IS NULL LIMIT 1');
++        $st->execute([$slug]);
++        $row = $st->fetch();
++        return is_array($row) ? $row : null;
++    }
++
++    /** @return list<array<string,mixed>> */
++    public function branches(int $restaurantId): array
++    {
++        $st = $this->pdo->prepare('SELECT * FROM restaurant_branches WHERE restaurant_id = ? AND deleted_at IS NULL AND is_active = 1 ORDER BY id ASC');
++        $st->execute([$restaurantId]);
++        $rows = $st->fetchAll();
++        return is_array($rows) ? $rows : [];
++    }
++
++    /** @return array{categories:list<array<string,mixed>>, items:list<array<string,mixed>>, variants:list<array<string,mixed>>, add_ons:list<array<string,mixed>>, item_add_ons:list<array<string,mixed>>} */
++    public function menu(int $restaurantId): array
++    {
++        $cats = $this->pdo->query('SELECT id, name, slug, sort_order FROM food_categories WHERE is_active = 1 ORDER BY sort_order ASC, id ASC');
++        $categories = $cats ? $cats->fetchAll() : [];
++
++        $st = $this->pdo->prepare('SELECT * FROM food_items WHERE restaurant_id = ? AND is_active = 1 AND deleted_at IS NULL ORDER BY id DESC');
++        $st->execute([$restaurantId]);
++        $items = $st->fetchAll();
++
++        $v = $this->pdo->prepare('SELECT * FROM food_variants WHERE food_item_id IN (SELECT id FROM food_items WHERE restaurant_id = ? AND is_active = 1 AND deleted_at IS NULL)');
++        $v->execute([$restaurantId]);
++        $variants = $v->fetchAll();
++
++        $a = $this->pdo->prepare('SELECT * FROM add_ons WHERE restaurant_id = ? AND is_active = 1 ORDER BY id DESC');
++        $a->execute([$restaurantId]);
++        $addOns = $a->fetchAll();
++
++        $ia = $this->pdo->prepare('SELECT fio.food_item_id, fio.add_on_id FROM food_item_add_ons fio INNER JOIN food_items fi ON fi.id = fio.food_item_id WHERE fi.restaurant_id = ?');
++        $ia->execute([$restaurantId]);
++        $itemAddOns = $ia->fetchAll();
++
++        return [
++            'categories' => is_array($categories) ? $categories : [],
++            'items' => is_array($items) ? $items : [],
++            'variants' => is_array($variants) ? $variants : [],
++            'add_ons' => is_array($addOns) ? $addOns : [],
++            'item_add_ons' => is_array($itemAddOns) ? $itemAddOns : [],
++        ];
++    }
++
++    /** @return array{restaurants:list<array<string,mixed>>, items:list<array<string,mixed>>} */
++    public function search(string $q, array $query): array
++    {
++        $p = Pagination::fromQuery($query, 20, 50);
++        $like = '%' . $q . '%';
++
++        $rs = $this->pdo->prepare('SELECT id, name, slug, rating, cuisines FROM restaurants WHERE is_active = 1 AND deleted_at IS NULL AND name LIKE ? ORDER BY rating DESC LIMIT 10');
++        $rs->execute([$like]);
++        $restaurants = $rs->fetchAll();
++
++        $is = $this->pdo->prepare('SELECT id, restaurant_id, name, slug, base_price, is_veg, spicy_level FROM food_items WHERE is_active = 1 AND deleted_at IS NULL AND name LIKE ? ORDER BY id DESC LIMIT ' . (int)$p['limit'] . ' OFFSET ' . (int)$p['offset']);
++        $is->execute([$like]);
++        $items = $is->fetchAll();
++
++        return [
++            'restaurants' => is_array($restaurants) ? $restaurants : [],
++            'items' => is_array($items) ? $items : [],
++        ];
++    }
++}

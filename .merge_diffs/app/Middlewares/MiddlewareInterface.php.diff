@@ -1,0 +1,20 @@
+diff --git a/app/Middlewares/MiddlewareInterface.php b/app/Middlewares/MiddlewareInterface.php
+new file mode 100644
+index 0000000..ea7286b
+--- /dev/null
++++ b/app/Middlewares/MiddlewareInterface.php
+@@ -0,0 +1,14 @@
++<?php
++declare(strict_types=1);
++
++namespace App\Middlewares;
++
++use App\Bootstrap\App;
++use App\Http\Request;
++use App\Http\Response;
++
++interface MiddlewareInterface
++{
++    /** @param callable(Request, App): Response $next */
++    public function handle(Request $request, App $app, callable $next): Response;
++}
